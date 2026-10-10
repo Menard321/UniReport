@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// MODELS
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  university    String?
+  role          UserRole  @default(STUDENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  subscription  Subscription?
+  documents     Document[]
+  activityLogs  ActivityLog[]
+  reportPlans   ReportPlan[]
+}
+
+enum UserRole {
+  STUDENT
+  ACADEMIC_STAFF
+  UNIREPORT_ADMIN
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  tier          TierLevel @default(FREE)
+  isActive      Boolean   @default(true)
+  
+  // Usage tracking against limits
+  projectsUsed  Int       @default(0)
+  aiTokensUsed  Int       @default(0)
+  storageUsedMb Float     @default(0.0)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum TierLevel {
+  FREE
+  STUDENT
+  PRO
+  INSTITUTIONAL
+}
+
+model Document {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  content       String    @db.Text
+  toolType      String    // e.g. "lit-review", "methodology", "field-report"
+  
+  storageSizeKb Float     @default(0.0)
+  isPaid        Boolean   @default(false)
+  targetPages   Int       @default(10)
+  downloadUrl   String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id            String    @id @default(cuid())
+  userId        String
+  action        String    // e.g. "AI_GENERATION", "PLAN_UPGRADE"
+  tokensCost    Int?
+  metadata      String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// DEEP ACADEMIC REPORT ORCHESTRATION MODELS
+model ReportPlan {
+  id            String          @id @default(cuid())
+  userId        String
+  title         String
+  reportType    String          // e.g. "FYP", "FIELDWORK", "DISSERTATION"
+  institution   String
+  targetPages   Int             @default(10)
+  totalWordTarget Int           @default(3500)
+  citationStyle String          @default("APA7")
+  customTemplate String?        @db.Text
+  status        String          @default("PLANNING") // PLANNING, GENERATING, VERIFYING, COMPLETED
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections      ReportSection[]
+  citations     Citation[]
+}
+
+model ReportSection {
+  id            String     @id @default(cuid())
+  planId        String
+  chapterNumber Int
+  title         String
+  subHeadings   String[]
+  wordBudget    Int
+  content       String?    @db.Text
+  status        String     @default("PENDING") // PENDING, GENERATING, COMPLETED, DEFICIENT
+  qaScore       Int?
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  plan          ReportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model Citation {
+  id                 String     @id @default(cuid())
+  planId             String
+  authors            String
+  title              String
+  year               Int
+  journal            String?
+  doi                String?
+  url                String?
+  verificationStatus String     @default("UNVERIFIED") // VERIFIED, UNVERIFIED, MISMATCH
+  
+  createdAt          DateTime   @default(now())
+
+  plan               ReportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}

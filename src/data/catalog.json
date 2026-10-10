@@ -1,0 +1,122 @@
+[
+  {
+    "id": "inst-udsm",
+    "name": "University of Dar es Salaam",
+    "shortName": "UDSM",
+    "logoUrl": "/logos/UDSM.jpeg"
+  },
+  {
+    "id": "inst-udom",
+    "name": "University of Dodoma",
+    "shortName": "UDOM",
+    "logoUrl": "/logos/UDOM.png"
+  },
+  {
+    "id": "inst-sua",
+    "name": "Sokoine University of Agriculture",
+    "shortName": "SUA",
+    "logoUrl": "/logos/SUA.jpeg"
+  },
+  {
+    "id": "inst-aru",
+    "name": "Ardhi University",
+    "shortName": "ARU",
+    "logoUrl": "/logos/ARDHI.jpeg"
+  },
+  {
+    "id": "inst-dit",
+    "name": "Dar es Salaam Institute of Technology",
+    "shortName": "DIT",
+    "logoUrl": "/logos/DIT.jpeg"
+  },
+  {
+    "id": "inst-cbe",
+    "name": "College of Business Education",
+    "shortName": "CBE",
+    "logoUrl": "/logos/CBE.png"
+  },
+  {
+    "id": "inst-ifm",
+    "name": "Institute of Finance Management",
+    "shortName": "IFM",
+    "logoUrl": "/logos/IFM.jpeg"
+  },
+  {
+    "id": "inst-nit",
+    "name": "National Institute of Transport",
+    "shortName": "NIT",
+    "logoUrl": "/logos/NIT.jpeg"
+  },
+  {
+    "id": "inst-muhas",
+    "name": "Muhimbili University of Health and Allied Sciences",
+    "shortName": "MUHAS",
+    "logoUrl": "/logos/MUHAS.jpeg"
+  },
+  {
+    "id": "inst-must",
+    "name": "Mbeya University of Science and Technology",
+    "shortName": "MUST",
+    "logoUrl": "/logos/MUST.jpeg"
+  },
+  {
+    "id": "inst-iaa",
+    "name": "Institute of Accountancy Arusha",
+    "shortName": "IAA",
+    "logoUrl": "/logos/IAA.jpeg"
+  },
+  {
+    "id": "inst-out",
+    "name": "Open University of Tanzania",
+    "shortName": "OUT",
+    "logoUrl": "/logos/out.svg"
+  },
+  {
+    "id": "inst-saut",
+    "name": "St. Augustine University of Tanzania",
+    "shortName": "SAUT",
+    "logoUrl": "/logos/saut.svg"
+  },
+  {
+    "id": "inst-hkmu",
+    "name": "Hubert Kairuki Memorial University",
+    "shortName": "HKMU",
+    "logoUrl": "/logos/hkmu.svg"
+  },
+  {
+    "id": "inst-kcmuco",
+    "name": "Kilimanjaro Christian Medical University College",
+    "shortName": "KCMUCo",
+    "logoUrl": "/logos/kcmuco.svg"
+  },
+  {
+    "id": "inst-uaut",
+    "name": "United African University of Tanzania",
+    "shortName": "UAUT",
+    "logoUrl": "/logos/uaut.svg"
+  },
+  {
+    "id": "inst-tumaini",
+    "name": "Tumaini University Makumira",
+    "shortName": "TUMAINI",
+    "logoUrl": "/logos/tumaini.svg"
+  },
+  {
+    "id": "inst-suza",
+    "name": "State University of Zanzibar",
+    "shortName": "SUZA",
+    "logoUrl": "/logos/suza.svg"
+  },
+  {
+    "id": "inst-sjuit",
+    "name": "St. Joseph University in Tanzania",
+    "shortName": "SJUIT",
+    "logoUrl": "/logos/sjuit.svg"
+  },
+  {
+    "id": "inst-tia",
+    "name": "Tanzania Institute of Accountancy",
+    "shortName": "TIA",
+    "logoUrl": "/logos/tia.svg"
+  }
+]

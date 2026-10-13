@@ -18,7 +18,13 @@ import {
   ChevronUp,
   ShieldCheck,
   Check,
-  X
+  X,
+  GraduationCap,
+  BookOpen,
+  Sliders,
+  CheckCircle2,
+  ExternalLink,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TOOLS } from "@/lib/tools-config";
@@ -33,6 +39,25 @@ export default function ToolPage() {
   const [output, setOutput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
+
+  // Specialized Research Assistant States
+  // 1. Topic Assistant
+  const [progField, setProgField] = useState("");
+  const [interestDomain, setInterestDomain] = useState("");
+  const [geoScope, setGeoScope] = useState("");
+  const [academicLevel, setAcademicLevel] = useState("Undergraduate FYP");
+
+  // 2. Literature Review Assistant
+  const [lrTopic, setLrTopic] = useState("");
+  const [lrTheories, setLrTheories] = useState("");
+  const [lrPapers, setLrPapers] = useState("");
+  const [lrCitation, setLrCitation] = useState<"APA7" | "IEEE" | "HARVARD">("APA7");
+
+  // 3. Methodology Assistant
+  const [mResearchType, setMResearchType] = useState("Engineering & Software System Development");
+  const [mQuestions, setMQuestions] = useState("");
+  const [mPopulation, setMPopulation] = useState("");
+  const [mTools, setMTools] = useState("");
 
   // Payment Gate State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -64,8 +89,9 @@ export default function ToolPage() {
     );
   }
 
-  const handleGenerate = async () => {
-    if (!input.trim()) return;
+  const handleGenerate = async (customInput?: string) => {
+    const textToSubmit = customInput || input;
+    if (!textToSubmit.trim()) return;
     
     setIsGenerating(true);
     setOutput("");
@@ -74,7 +100,7 @@ export default function ToolPage() {
       const response = await fetch("/api/tools/completion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolId, systemPrompt: tool.systemPrompt, input })
+        body: JSON.stringify({ toolId, systemPrompt: tool.systemPrompt, input: textToSubmit })
       });
       
       const data = await response.json();
@@ -82,7 +108,7 @@ export default function ToolPage() {
       
       for (let i = 0; i <= text.length; i++) {
         setOutput(text.slice(0, i));
-        await new Promise(r => setTimeout(r, 8));
+        await new Promise(r => setTimeout(r, 6));
       }
 
       // Persist to database physically
@@ -91,7 +117,7 @@ export default function ToolPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: `${tool.title} Generation`,
+            title: `${tool.title} Output`,
             content: text,
             toolType: toolId
           })
@@ -107,6 +133,53 @@ export default function ToolPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleGenerateTopics = () => {
+    if (!progField.trim() || !interestDomain.trim()) {
+      alert("Please enter your Degree Programme and Area of Interest.");
+      return;
+    }
+    const promptText = `Degree Programme / Discipline: ${progField}
+Area of Interest & Problem Domain: ${interestDomain}
+Target Case Study / Geographic Scope: ${geoScope || "Tanzanian Higher Education / National Context"}
+Academic Level: ${academicLevel}
+
+Please generate 3 to 4 defense-ready, publication-grade academic research topic proposals complying with TCU and university guidelines. For each topic, provide a formal title, a 2-paragraph problem statement, specific measurable objectives, feasibility notes, and expected contribution.`;
+    handleGenerate(promptText);
+  };
+
+  const handleGenerateLitReview = () => {
+    if (!lrTopic.trim()) {
+      alert("Please enter your Approved Research Title / Topic.");
+      return;
+    }
+    const promptText = `Approved Research Topic: ${lrTopic}
+Governing Theoretical Frameworks / Models: ${lrTheories || "Standard academic models"}
+Key Empirical Studies / Authors Context: ${lrPapers || "Recent empirical literature in Tanzania and East Africa"}
+Citation Format: ${lrCitation} Standard
+
+Please synthesize an exhaustive Chapter 2 Literature Review adhering to university dissertation standards. Include:
+2.1 Conceptual Foundations & Variables
+2.2 Theoretical Framework Review
+2.3 Empirical Literature Critique
+2.4 Identified Research Gap (Pengo la Utafiti)
+2.5 Conceptual Framework Summary Matrix (tabulated in Markdown)`;
+    handleGenerate(promptText);
+  };
+
+  const handleGenerateMethodology = () => {
+    if (!mQuestions.trim()) {
+      alert("Please enter your Research Questions or Hypotheses.");
+      return;
+    }
+    const promptText = `Research Nature: ${mResearchType}
+Governing Research Questions / Hypotheses: ${mQuestions}
+Target Population & Study Boundary: ${mPopulation || "Target operational context"}
+Data Collection Instruments & Tech Stack: ${mTools || "Primary data collection instruments"}
+
+Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tanzanian university standards. Include Research Philosophy & Design justification (citing methodology authorities such as Kothari, Creswell, or Saunders), Target Population with Yamane or Cochran sample size calculation formula, Instruments & Reliability (Cronbach's Alpha), Data Analysis Plan, and Ethical Clearances (COSTECH).`;
+    handleGenerate(promptText);
   };
 
   const downloadDocLocally = (content: string) => {
@@ -540,33 +613,248 @@ export default function ToolPage() {
       {/* Split Pane Workspace */}
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
         
-        {/* Left Side: Input Configuration */}
+        {/* Left Side: Specialized Input Configuration */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 bg-white dark:bg-slate-900 border rounded-xl overflow-hidden shadow-sm">
           <div className="p-4 border-b bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-            <span className="font-semibold text-sm">Provide Context</span>
+            <span className="font-semibold text-sm flex items-center gap-2">
+              <Sliders className="size-4 text-teal-600" />
+              {toolId === "topic-assistant" 
+                ? "Research Topic Parameters" 
+                : toolId === "lit-review" 
+                ? "Literature Review Scope" 
+                : toolId === "methodology" 
+                ? "Methodology Specifications" 
+                : "Provide Context"}
+            </span>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-muted-foreground uppercase tracking-wider">
+              {toolId === "topic-assistant" || toolId === "lit-review" || toolId === "methodology" ? "Guided Engine" : "Assistant"}
+            </span>
           </div>
-          <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto">
-            <div className="text-sm font-medium">What should the assistant know?</div>
-            <textarea
-              className="flex-1 w-full p-4 rounded-lg border bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
-              placeholder={tool.placeholders.input}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 p-4 rounded-lg text-sm text-amber-800 dark:text-amber-400">
-              <span className="font-bold flex items-center gap-2 mb-2"><Sparkles className="size-4" /> Pro Tip:</span>
-              {tool.placeholders.context}
-            </div>
+
+          <div className="p-5 flex-1 flex flex-col gap-4 overflow-y-auto">
+            {toolId === "topic-assistant" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Degree Programme / Academic Discipline *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BSc in Computer Science, BBA in Finance, Civil Engineering"
+                    value={progField}
+                    onChange={(e) => setProgField(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Area of Interest & Problem Domain *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. IoT in Soil Moisture Monitoring, Mobile Banking Churn, Solar Microgrids"
+                    value={interestDomain}
+                    onChange={(e) => setInterestDomain(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Target Case Study / Geographic Scope
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Morogoro Agricultural Corridor, Dar es Salaam Regional Hospitals"
+                    value={geoScope}
+                    onChange={(e) => setGeoScope(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Academic Level
+                  </label>
+                  <select
+                    value={academicLevel}
+                    onChange={(e) => setAcademicLevel(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="Undergraduate FYP">Undergraduate Final Year Project (FYP)</option>
+                    <option value="Master's Thesis">Master's Dissertation / Thesis</option>
+                    <option value="Diploma Project">Ordinary Diploma Project</option>
+                  </select>
+                </div>
+              </div>
+            ) : toolId === "lit-review" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Approved Research Title / Topic *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Impact of Electronic Invoicing on VAT Compliance in Tanzania"
+                    value={lrTopic}
+                    onChange={(e) => setLrTopic(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Governing Theoretical Frameworks / Models
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Technology Acceptance Model (TAM), Agency Theory, Resource-Based View"
+                    value={lrTheories}
+                    onChange={(e) => setLrTheories(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Key Authors / Empirical Literature Extracts
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="e.g. Paste abstract/findings from 2-4 key papers (e.g. Mushi 2021 found X, TRA 2023 reported Y)."
+                    value={lrPapers}
+                    onChange={(e) => setLrPapers(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Citation Standard
+                  </label>
+                  <select
+                    value={lrCitation}
+                    onChange={(e) => setLrCitation(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="APA7">APA 7th Edition</option>
+                    <option value="IEEE">IEEE Citation Format</option>
+                    <option value="HARVARD">Harvard Referencing Standard</option>
+                  </select>
+                </div>
+              </div>
+            ) : toolId === "methodology" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Research Methodology Nature *
+                  </label>
+                  <select
+                    value={mResearchType}
+                    onChange={(e) => setMResearchType(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="Engineering & Software System Development">Engineering & Software System Development (Prototype / IoT / ML)</option>
+                    <option value="Empirical Survey & Social Sciences">Empirical Survey & Social Sciences (Questionnaires, SPSS, Interviews)</option>
+                    <option value="Scientific Practical Experiment">Scientific Practical Experiment (Physical / Chemical Tests)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Governing Research Questions / Hypotheses *
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. 1. What is the impact of automated irrigation on crop yield? 2. What is the system diagnostic accuracy?"
+                    value={mQuestions}
+                    onChange={(e) => setMQuestions(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Target Population & Study Scope
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 250 Registered Agro-dealers in Morogoro, 50,000 transaction log records"
+                    value={mPopulation}
+                    onChange={(e) => setMPopulation(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Data Collection Instruments & Tech Stack
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Self-administered questionnaires, Python PyTorch, MQTT, PostgreSQL"
+                    value={mTools}
+                    onChange={(e) => setMTools(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm font-medium">What should the assistant know?</div>
+                <textarea
+                  className="flex-1 w-full p-4 rounded-xl border bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
+                  placeholder={tool.placeholders.input}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                />
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 p-4 rounded-xl text-sm text-amber-800 dark:text-amber-400">
+                  <span className="font-bold flex items-center gap-2 mb-2"><Sparkles className="size-4" /> Pro Tip:</span>
+                  {tool.placeholders.context}
+                </div>
+              </>
+            )}
           </div>
+
           <div className="p-4 border-t bg-slate-50 dark:bg-slate-800/50">
-            <Button 
-              className="w-full h-12 shadow-md gap-2" 
-              onClick={handleGenerate}
-              disabled={isGenerating || !input.trim()}
-            >
-              {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
-              {isGenerating ? "Generating..." : "Generate Output"}
-            </Button>
+            {toolId === "topic-assistant" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-amber-600 hover:bg-amber-500 text-white font-bold" 
+                onClick={handleGenerateTopics}
+                disabled={isGenerating || !progField.trim() || !interestDomain.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Scoping Research Topics..." : "Generate 4 Scoped Research Proposals"}
+              </Button>
+            ) : toolId === "lit-review" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold" 
+                onClick={handleGenerateLitReview}
+                disabled={isGenerating || !lrTopic.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Synthesizing Chapter 2..." : "Synthesize Thematic Literature Review"}
+              </Button>
+            ) : toolId === "methodology" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold" 
+                onClick={handleGenerateMethodology}
+                disabled={isGenerating || !mQuestions.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Architecting Methodology..." : "Architect Defense-Ready Methodology"}
+              </Button>
+            ) : (
+              <Button 
+                className="w-full h-12 shadow-md gap-2" 
+                onClick={() => handleGenerate()}
+                disabled={isGenerating || !input.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Generating..." : "Generate Output"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -630,17 +918,50 @@ export default function ToolPage() {
           >
             {output ? (
               <div className="relative">
+                {/* PIPELINE HAND-OFF ACTION BANNER */}
+                {toolId === "topic-assistant" && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="size-5 text-amber-600 shrink-0" />
+                      <span className="text-xs font-semibold text-amber-950 dark:text-amber-200">
+                        Ready to develop your thesis? Carry your topic into the FYP Builder.
+                      </span>
+                    </div>
+                    <Link href={`/dashboard/tools/fyp-generator?programme=${encodeURIComponent(progField)}`}>
+                      <Button size="sm" className="bg-amber-600 hover:bg-amber-500 text-white gap-1.5 text-xs font-bold shrink-0">
+                        Launch FYP Builder <ArrowRight className="size-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {(toolId === "lit-review" || toolId === "methodology") && (
+                  <div className="p-3 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="size-5 text-teal-600 shrink-0" />
+                      <span className="text-xs font-semibold text-teal-950 dark:text-teal-200">
+                        Attach this section to your multi-chapter Final Year Project.
+                      </span>
+                    </div>
+                    <Link href="/dashboard/tools/fyp-generator">
+                      <Button size="sm" className="bg-teal-600 hover:bg-teal-500 text-white gap-1.5 text-xs font-bold shrink-0">
+                        Open FYP Builder <ArrowRight className="size-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
                 {output}
                 {!isUnlocked && (
-                  <div className="mt-8 pt-4 border-t text-center text-xs text-slate-400 uppercase font-mono tracking-wider">
+                  <div className="mt-8 pt-4 border-t text-center text-xs text-slate-400 uppercase font-mono tracking-wider font-sans">
                     — Preview Mode • Payment Required to Copy or Export —
                   </div>
                 )}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 gap-4">
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 gap-4 font-sans">
                 <tool.icon className="size-16 stroke-[1px]" />
-                <p>Awaiting input...</p>
+                <p>Awaiting input parameters to generate...</p>
               </div>
             )}
           </div>

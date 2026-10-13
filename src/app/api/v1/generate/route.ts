@@ -68,8 +68,39 @@ export async function POST(req: Request) {
       ? `Required Sub-Headings to develop in this chapter:\n${subHeadings.map((sh: string) => `- ${sh}`).join("\n")}`
       : "";
 
-    const evidenceContext = evidenceData
-      ? `VERIFIED STUDENT LOGBOOK & ATTACHMENT EVIDENCE:
+    // Multi-type evidence grounding
+    let evidenceContext = "";
+    if (evidenceData) {
+      if (evidenceData.reportType === "LAB_REPORT" || evidenceData.experimentTitle || evidenceData.apparatus) {
+        evidenceContext = `VERIFIED LABORATORY EXPERIMENT EVIDENCE:
+- Experiment Title: ${evidenceData.experimentTitle || assignment?.title || "Laboratory Investigation"}
+- Course / Unit Code: ${evidenceData.courseCode || "Engineering / Science Practical"}
+- Laboratory Facility: ${evidenceData.labName || "Academic Laboratory"}
+- Apparatus & Instruments: ${evidenceData.apparatus || "Standard laboratory apparatus and measuring equipment"}
+- Experimental Variables: ${evidenceData.variables || "Independent, dependent, and controlled parameters"}
+- Stated Hypothesis: ${evidenceData.hypothesis || "Theoretical prediction based on scientific principles"}
+- Operational Procedure: ${evidenceData.procedure || "Standardized laboratory testing protocol"}
+- Raw Observations & Data: ${evidenceData.observations || "Empirical measurements, readings, and observed trends"}
+- Safety & Hazard Controls: ${evidenceData.safetyPrecautions || "Laboratory safety protocols and PPE guidelines"}`;
+      } else if (evidenceData.reportType === "COURSEWORK" || evidenceData.courseCode || evidenceData.caseStudyEntity) {
+        evidenceContext = `VERIFIED COURSEWORK & ASSIGNMENT EVIDENCE:
+- Topic / Problem Statement: ${evidenceData.topic || assignment?.title || "Academic Term Paper"}
+- Course Module: ${evidenceData.courseCode || "University Academic Module"}
+- Case Study Entity / Context: ${evidenceData.caseStudyEntity || "Target analytical subject / organization"}
+- Key Assignment Questions: ${evidenceData.questions || "Theoretical and analytical inquiry prompts"}
+- Prescribed Literature Themes: ${evidenceData.literatureThemes || "Peer-reviewed literature and scholarly frameworks"}
+- Grading Rubric Focus: ${evidenceData.rubricCriteria || "Critical argumentation, synthesis, and evidence-based recommendations"}`;
+      } else if (evidenceData.reportType === "FYP" || evidenceData.problemStatement || evidenceData.objectives) {
+        evidenceContext = `VERIFIED FINAL YEAR PROJECT (FYP) & DISSERTATION EVIDENCE:
+- Project Title: ${evidenceData.title || assignment?.title || "Academic Final Year Project"}
+- Academic Programme: ${evidenceData.programme || "Degree Programme"}
+- Statement of the Problem: ${evidenceData.problemStatement || "Identified empirical/theoretical problem"}
+- Aim & Objectives: ${evidenceData.objectives || "Specific, measurable research objectives"}
+- Research Questions / Hypotheses: ${evidenceData.researchQuestions || "Governing academic questions"}
+- Research Methodology & Stack: ${evidenceData.methodology || "System development and empirical data collection methodology"}
+- Theoretical Framework: ${evidenceData.theoreticalFramework || "Scholarly models and conceptual foundation"}`;
+      } else {
+        evidenceContext = `VERIFIED STUDENT LOGBOOK & ATTACHMENT EVIDENCE:
 - Host Organization: ${evidenceData.organization || "Host Organization"}
 - Department / Unit: ${evidenceData.department || "Technical Department"}
 - Industrial Supervisor: ${evidenceData.supervisor || "Field Supervisor"}
@@ -77,16 +108,17 @@ export async function POST(req: Request) {
 - Logged Tasks & Routines: ${evidenceData.activities || "Operational and hands-on technical tasks"}
 - Tools & Software Stack: ${evidenceData.toolsUsed || "Standard engineering and analysis tools"}
 - Documented Technical Challenges: ${evidenceData.challenges || "Operational constraints encountered"}
-- Documented Lessons Learned: ${evidenceData.keyLearnings || "Technical competencies acquired"}`
-      : "";
+- Documented Lessons Learned: ${evidenceData.keyLearnings || "Technical competencies acquired"}`;
+      }
+    }
 
     const systemInstruction = `You are an authoritative Tanzanian university academic supervisor and evaluator at ${targetInstitution}.
 Your duty is to produce an EXHAUSTIVE, publication-grade academic report section adhering to official guidelines and TCU academic standards.
 
 CRITICAL INTEGRITY INSTRUCTIONS:
-1. Preserve all authentic student evidence, host organization details, supervisor roles, and technical tools. Under NO circumstances fabricate external organizations, fake companies, or hallucinated case studies.
+1. Preserve all authentic student evidence, parameters, experimental data, host organization details, supervisor roles, and technical tools. Under NO circumstances fabricate external organizations, fake companies, or hallucinated findings.
 2. Structure the output into detailed, well-developed academic paragraphs under the specified sub-headings.
-3. Avoid superficial bullet-points. Provide analytical explanations, methodology context, and technical justifications.
+3. STRICT PROHIBITION ON SUPERFICIAL SUMMARIES: Do NOT write high-level bullet summaries. Write rigorous, analytical, comprehensive paragraphs with deep theoretical and practical context.
 4. Target length: approximately ${budgetWords} words of rigorous prose.`;
 
     const userPrompt = prompt || `${promptInstructions || `Draft Chapter: ${currentChapter}`}\n\n${subHeadingsText}\n\n${evidenceContext}\n\nEnsure strict adherence to ${targetInstitution} guidelines.`;
@@ -104,11 +136,11 @@ CRITICAL INTEGRITY INSTRUCTIONS:
       console.warn("AI SDK fallback triggered:", err);
       // Academic template fallback preserving student evidence
       const subHeadingContent = (Array.isArray(subHeadings) && subHeadings.length > 0 ? subHeadings : [
-        "1.1 Overview and Academic Context",
-        "1.2 Detailed Operational Implementation",
-        "1.3 Evaluation and Key Outcomes"
-      ]).map((sh: string, idx: number) => {
-        return `### ${sh}\n\nIn accordance with the official ${targetInstitution} guidelines, this section examines the practical activities and technical frameworks implemented during the field placement. Routine operational duties carried out at ${evidenceData?.organization || "the host organization"} were executed under the direct supervision of ${evidenceData?.supervisor || "the departmental supervisor"}.\n\nTasks involved hands-on utilization of ${evidenceData?.toolsUsed || "specialized technical tools and workflows"}, addressing real operational challenges such as ${evidenceData?.challenges || "infrastructure constraints"}. The outcomes substantiated classroom theoretical knowledge while instilling professional discipline and industrial ethics.\n`;
+        "1.1 Academic Overview and Theoretical Context",
+        "1.2 Detailed Investigation & Technical Execution",
+        "1.3 Evaluation, Analysis & Academic Outcomes"
+      ]).map((sh: string) => {
+        return `### ${sh}\n\nIn accordance with the official ${targetInstitution} academic standards, this section presents an exhaustive investigation for "${currentChapter}". The analysis strictly incorporates authentic data, validating classroom theoretical frameworks against practical application.\n\nAll workflows, methodology protocols, and technical apparatus were operated under rigorous academic discipline. The resulting findings address established objectives, maintaining strict compliance with departmental guidelines and citation standards.\n`;
       }).join("\n");
 
       generatedText = `## ${currentChapter.toUpperCase()}\n\n${subHeadingContent}`;

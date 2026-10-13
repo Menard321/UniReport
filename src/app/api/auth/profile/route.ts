@@ -11,7 +11,7 @@ export async function GET() {
 
     const user = await db.user.findUnique({
       where: { id: session.userId as string },
-      select: { id: true, name: true, email: true, role: true, university: true }
+      select: { id: true, name: true, email: true, phone: true, role: true, university: true }
     });
 
     if (!user) {
@@ -32,7 +32,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email } = await req.json();
+    const { name, email, phone } = await req.json();
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
@@ -44,14 +44,24 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Email is already taken" }, { status: 409 });
     }
 
+    let normalizedPhone = phone ? phone.trim() : null;
+    if (normalizedPhone) {
+      const existingPhone = await db.user.findFirst({
+        where: { phone: normalizedPhone, NOT: { id: session.userId as string } }
+      });
+      if (existingPhone) {
+        return NextResponse.json({ error: "Phone number is already associated with another account" }, { status: 409 });
+      }
+    }
+
     const updatedUser = await db.user.update({
       where: { id: session.userId as string },
-      data: { name, email }
+      data: { name, email, phone: normalizedPhone }
     });
 
     return NextResponse.json({ 
       success: true, 
-      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email } 
+      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, phone: updatedUser.phone } 
     });
 
   } catch (error) {

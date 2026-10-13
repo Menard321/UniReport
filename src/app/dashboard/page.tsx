@@ -68,7 +68,7 @@ export default async function DashboardPage() {
       desc: "Scientific experiment setups, data observations, methodologies, and findings.",
       icon: FlaskConical,
       color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/40",
-      link: "/dashboard/tools/methodology"
+      link: "/dashboard/tools/lab-report"
     },
     {
       id: "coursework-technical",
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
       desc: "Module term papers, case studies, and engineering technical project assignments.",
       icon: BookOpen,
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/40",
-      link: "/dashboard/create"
+      link: "/dashboard/tools/coursework"
     }
   ];
 

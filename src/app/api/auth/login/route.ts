@@ -2,22 +2,40 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/session";
+import { getPhoneLookupVariants } from "@/lib/auth-utils";
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const identifier = (body.identifier || body.email || body.phone || "").trim();
+    const password = body.password;
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!identifier || !password) {
+      return NextResponse.json({ error: "Please enter your email or phone number and password" }, { status: 400 });
     }
 
-    // Find the user
-    let user = await db.user.findUnique({
-      where: { email },
-    });
+    let user = null;
+
+    if (identifier.includes("@")) {
+      // Find the user by email
+      user = await db.user.findUnique({
+        where: { email: identifier.toLowerCase() },
+      });
+    } else {
+      // Find the user by phone number variants or email
+      const phoneVariants = getPhoneLookupVariants(identifier);
+      user = await db.user.findFirst({
+        where: {
+          OR: [
+            { phone: { in: phoneVariants } },
+            { email: identifier.toLowerCase() },
+          ],
+        },
+      });
+    }
 
     // Auto-provision default admin user if logging in with admin@unireport.tz for the first time
-    if (!user && email.toLowerCase() === "admin@unireport.tz") {
+    if (!user && identifier.toLowerCase() === "admin@unireport.tz") {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash("admin123", salt);
       user = await db.user.create({
@@ -34,14 +52,14 @@ export async function POST(req: Request) {
     }
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid email, phone number, or password" }, { status: 401 });
     }
 
     // Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid email, phone number, or password" }, { status: 401 });
     }
 
     // Create session cookie
@@ -52,7 +70,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       redirectTo,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        phone: user.phone, 
+        role: user.role 
+      }
     }, { status: 200 });
 
   } catch (error) {

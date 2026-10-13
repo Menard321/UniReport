@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpenText, Loader2 } from "lucide-react";
+import { BookOpenText, Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterPage() {
@@ -20,13 +20,14 @@ export default function RegisterPage() {
     const firstName = formData.get("firstName");
     const lastName = formData.get("lastName");
     const email = formData.get("email");
+    const phone = formData.get("phone");
     const password = formData.get("password");
 
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password }),
+        body: JSON.stringify({ firstName, lastName, email, phone, password }),
       });
 
       const data = await res.json();
@@ -99,6 +100,22 @@ export default function RegisterPage() {
                 className="w-full h-11 px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">Phone Number</label>
+                <span className="text-xs text-muted-foreground font-normal">Optional (for mobile login)</span>
+              </div>
+              <div className="relative flex items-center">
+                <Phone className="size-4 text-muted-foreground absolute left-3 pointer-events-none" />
+                <input 
+                  type="tel" 
+                  name="phone"
+                  placeholder="0712 345 678 or +255 7XX XXX XXX"
+                  className="w-full h-11 pl-9 pr-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                />
+              </div>
             </div>
             
             <div className="space-y-2">

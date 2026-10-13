@@ -17,14 +17,14 @@ export default function LoginPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email");
+    const identifier = formData.get("identifier");
     const password = formData.get("password");
 
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       const data = await res.json();
@@ -67,13 +67,14 @@ export default function LoginPage() {
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Email Address</label>
+              <label className="text-sm font-medium text-foreground">Email or Phone Number</label>
               <input 
-                type="email" 
-                name="email"
-                placeholder="student@university.ac.tz"
-                className="w-full h-11 px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                type="text" 
+                name="identifier"
+                placeholder="student@university.ac.tz or 07XXXXXXXX"
+                className="w-full h-11 px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                 required
+                autoComplete="username"
               />
             </div>
             

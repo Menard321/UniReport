@@ -2,22 +2,45 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/session";
+import { normalizePhone, isValidPhoneNumber, getPhoneLookupVariants } from "@/lib/auth-utils";
 
 export async function POST(req: Request) {
   try {
-    const { firstName, lastName, email, password } = await req.json();
+    const { firstName, lastName, email, phone, password } = await req.json();
 
     if (!email || !password || !firstName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Check if user already exists
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user already exists with that email
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (existingUser) {
       return NextResponse.json({ error: "User already exists with that email" }, { status: 409 });
+    }
+
+    let normalizedPhone: string | null = null;
+    if (phone && phone.trim()) {
+      if (!isValidPhoneNumber(phone)) {
+        return NextResponse.json({ error: "Please enter a valid phone number (e.g., 0712 345 678)" }, { status: 400 });
+      }
+      normalizedPhone = normalizePhone(phone);
+
+      // Check if phone number is already registered by looking up variants
+      const phoneVariants = getPhoneLookupVariants(phone);
+      const existingPhoneUser = await db.user.findFirst({
+        where: {
+          phone: { in: phoneVariants }
+        }
+      });
+
+      if (existingPhoneUser) {
+        return NextResponse.json({ error: "An account with this phone number already exists" }, { status: 409 });
+      }
     }
 
     // Hash password
@@ -25,7 +48,7 @@ export async function POST(req: Request) {
     const passwordHash = await bcrypt.hash(password, salt);
 
     // Determine role based on email domain / prefix
-    const role = (email.toLowerCase().endsWith("@unireport.tz") || email.toLowerCase().startsWith("admin@"))
+    const role = (cleanEmail.endsWith("@unireport.tz") || cleanEmail.startsWith("admin@"))
       ? "UNIREPORT_ADMIN"
       : "STUDENT";
 
@@ -33,7 +56,8 @@ export async function POST(req: Request) {
     const newUser = await db.user.create({
       data: {
         name: `${firstName} ${lastName}`.trim(),
-        email,
+        email: cleanEmail,
+        phone: normalizedPhone,
         passwordHash,
         role,
         subscription: {
@@ -49,7 +73,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role }
+      user: { 
+        id: newUser.id, 
+        name: newUser.name, 
+        email: newUser.email, 
+        phone: newUser.phone, 
+        role: newUser.role 
+      }
     }, { status: 201 });
 
   } catch (error) {

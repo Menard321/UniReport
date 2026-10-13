@@ -195,6 +195,142 @@ export function analyzeAssignmentAndPlan(input: AssignmentInput): ReportBlueprin
         promptInstructions: "Summarize training outcomes and present actionable recommendations for both host organization and university."
       }
     ];
+  } else if (input.reportType === "LAB_REPORT") {
+    sections = [
+      {
+        chapterNumber: 1,
+        title: "Section 1: Experiment Title, Objectives & Theoretical Principles",
+        subHeadings: [
+          "1.1 Scientific Rationale & Experiment Background",
+          "1.2 Fundamental Scientific & Engineering Principles",
+          "1.3 Primary Experiment Objectives & Hypotheses",
+          "1.4 Academic Coursework Alignment & Scope"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.15),
+        promptInstructions: "Establish the theoretical foundation, scientific laws/formulas governing the experiment, and stated testable hypotheses."
+      },
+      {
+        chapterNumber: 2,
+        title: "Section 2: Laboratory Apparatus, Materials & Calibration",
+        subHeadings: [
+          "2.1 Comprehensive List of Apparatus & Specifications",
+          "2.2 Reagents, Test Samples & Material Properties",
+          "2.3 Instrument Sensitivity, Measurement Ranges & Calibration",
+          "2.4 Experimental Setup Architecture & Circuit/Test Rig Diagram"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.15),
+        promptInstructions: "Detail all hardware instruments, tolerances, calibration procedures, and setup schematics with precision."
+      },
+      {
+        chapterNumber: 3,
+        title: "Section 3: Experimental Methodology & Operating Procedures",
+        subHeadings: [
+          "3.1 Identification of Independent, Dependent & Controlled Variables",
+          "3.2 Step-by-Step Chronological Test Execution Procedure",
+          "3.3 Operational Adjustments & Environmental Conditions",
+          "3.4 Laboratory Safety Measures, PPE & Hazard Controls"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.20),
+        promptInstructions: "Write an authoritative procedural description ensuring replicability. State variables and safety protocols clearly."
+      },
+      {
+        chapterNumber: 4,
+        title: "Section 4: Data Acquisition, Observations & Mathematical Calculations",
+        subHeadings: [
+          "4.1 Structured Tabulation of Raw Experimental Readings",
+          "4.2 Quantitative Processing & Applied Governing Equations",
+          "4.3 Graphical Analysis & Data Trends",
+          "4.4 Sample Step-by-Step Calculations with Units"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.25),
+        promptInstructions: "Present structured markdown data tables, mathematical derivations, calculations with standard units, and trend observations."
+      },
+      {
+        chapterNumber: 5,
+        title: "Section 5: Scientific Discussion & Quantitative Error Analysis",
+        subHeadings: [
+          "5.1 Critical Interpretation of Experimental Findings",
+          "5.2 Comparison with Accepted Theoretical & Standard Values",
+          "5.3 Systematic, Random & Environmental Sources of Error",
+          "5.4 Percentage Discrepancies & Uncertainty Propagation"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.15),
+        promptInstructions: "Provide a rigorous scientific discussion comparing actual readings against theoretical benchmarks with error analysis."
+      },
+      {
+        chapterNumber: 6,
+        title: "Section 6: Conclusions, Engineering Implications & Lab Recommendations",
+        subHeadings: [
+          "6.1 Validation or Rejection of Initial Hypothesis",
+          "6.2 Key Takeaways & Practical Engineering Implications",
+          "6.3 Technical Recommendations for Future Experimental Iterations",
+          "6.4 Academic References & Standard Lab Standards"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.10),
+        promptInstructions: "State decisive conclusions regarding the hypothesis and formulate actionable recommendations to improve accuracy."
+      }
+    ];
+  } else if (input.reportType === "COURSEWORK") {
+    sections = [
+      {
+        chapterNumber: 1,
+        title: "Section 1: Introduction, Problem Scope & Module Context",
+        subHeadings: [
+          "1.1 Topic Background & Academic Relevance",
+          "1.2 Statement of the Assignment Problem / Case Dilemma",
+          "1.3 Key Theoretical Questions & Investigation Scope",
+          "1.4 Structure of the Technical Paper"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.15),
+        promptInstructions: "Introduce the academic topic, define the boundary of the problem, and contextualize within the university module curriculum."
+      },
+      {
+        chapterNumber: 2,
+        title: "Section 2: Conceptual Literature Synthesis & Theoretical Review",
+        subHeadings: [
+          "2.1 Core Theoretical Frameworks & Scholarly Models",
+          "2.2 Critical Review of Seminal Literature & Perspectives",
+          "2.3 Comparison of Divergent Academic Methodologies",
+          "2.4 Synthesized Conceptual Matrix"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.25),
+        promptInstructions: "Synthesize academic literature and models thematically with authoritative citations. Contrast competing viewpoints."
+      },
+      {
+        chapterNumber: 3,
+        title: "Section 3: Critical Analysis, Case Study Investigation & Evaluation",
+        subHeadings: [
+          "3.1 Context of Case Study Entity or Empirical Data",
+          "3.2 In-Depth Qualitative & Quantitative Investigation",
+          "3.3 Assessment Against Industry Benchmarks & Guidelines",
+          "3.4 Key Findings & Analytical Insights"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.30),
+        promptInstructions: "Perform rigorous critical analysis applied to the specific case or assignment scenario with evidentiary depth."
+      },
+      {
+        chapterNumber: 4,
+        title: "Section 4: Strategic Recommendations & Actionable Frameworks",
+        subHeadings: [
+          "4.1 Evidence-Based Interventions & Solutions",
+          "4.2 Implementation Roadmaps & Resource Considerations",
+          "4.3 Risk Assessment & Mitigation Mechanisms"
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.18),
+        promptInstructions: "Provide structured, realistic recommendations with phased implementation strategies and risk considerations."
+      },
+      {
+        chapterNumber: 5,
+        title: "Section 5: Conclusion & Comprehensive Academic Bibliography",
+        subHeadings: [
+          "5.1 Synthesis of Findings & Concluding Verdict",
+          "5.2 Limitations of the Assignment Analysis",
+          `5.3 Verified Bibliography (${citationStyle} Academic Standard)`
+        ],
+        wordBudget: Math.round(totalWordTarget * 0.12),
+        promptInstructions: "Conclude the term paper cohesively and provide complete, correctly formatted scholarly references."
+      }
+    ];
   } else {
     // FYP / DISSERTATION DEFAULT 6-CHAPTER STRUCTURE
     sections = [

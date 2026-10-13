@@ -21,14 +21,14 @@ export default function CreateReportLauncher() {
     {
       title: "Practical & Laboratory Report",
       desc: "Scientific experiments, technical setups, data collection, and lab observations.",
-      link: "/dashboard/tools/methodology",
+      link: "/dashboard/tools/lab-report",
       icon: FlaskConical,
-      badge: "Methodology Focus"
+      badge: "Scientific Lab Wizard"
     },
     {
       title: "Coursework & Technical Assignment",
       desc: "Module term papers, literature reviews, and case study reports.",
-      link: "/dashboard/tools/lit-review",
+      link: "/dashboard/tools/coursework",
       icon: BookOpen,
       badge: "Academic Writing"
     }
@@ -67,17 +67,20 @@ export default function CreateReportLauncher() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {reportOptions.map((opt, i) => (
-          <div key={i} className="p-6 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-primary/50 transition flex flex-col justify-between group">
+          <div 
+            key={i} 
+            className="p-6 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl hover:border-teal-500/40 flex flex-col justify-between group cursor-pointer"
+          >
             <div>
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 border border-teal-200 dark:border-teal-900/50">
+                <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 border border-teal-200 dark:border-teal-900/50 group-hover:scale-110 group-hover:bg-teal-600 group-hover:text-white transition-all duration-300">
                   <opt.icon className="size-6" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300">
                   {opt.badge}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors mb-2">
+              <h3 className="text-lg font-bold text-foreground group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors mb-2">
                 {opt.title}
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-6">
@@ -85,9 +88,10 @@ export default function CreateReportLauncher() {
               </p>
             </div>
 
-            <Link href={opt.link}>
-              <Button className="w-full gap-2">
-                Launch Creator <ArrowRight className="size-4" />
+            <Link href={opt.link} className="block w-full">
+              <Button className="w-full gap-2 transition-all duration-300 group-hover:bg-primary group-hover:text-white group-hover:shadow-md cursor-pointer">
+                <span>Launch Creator</span>
+                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
           </div>

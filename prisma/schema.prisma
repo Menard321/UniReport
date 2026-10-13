@@ -22,10 +22,13 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  subscription  Subscription?
-  documents     Document[]
-  activityLogs  ActivityLog[]
-  reportPlans   ReportPlan[]
+  subscription        Subscription?
+  documents           Document[]
+  activityLogs        ActivityLog[]
+  reportPlans         ReportPlan[]
+  paymentTransactions PaymentTransaction[]
+  supportTickets      SupportTicket[]
+  notifications       Notification[]
 }
 
 enum UserRole {
@@ -141,3 +144,124 @@ model Citation {
 
   plan               ReportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
+
+// -----------------------------------------------------------------------------
+// LIVE PRODUCTION COMMERCE & MONITORING MODELS
+// -----------------------------------------------------------------------------
+
+model PaymentTransaction {
+  id          String          @id @default(cuid())
+  userId      String
+  reference   String          @unique
+  amount      Int             // in TZS
+  currency    String          @default("TZS")
+  provider    PaymentProvider
+  tier        TierLevel
+  status      PaymentStatus   @default(PENDING)
+  phone       String?
+  metadata    String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentProvider {
+  M_PESA
+  TIGO_PESA
+  AIRTEL_MONEY
+  HALOPESA
+  BANK_TRANSFER
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model SupportTicket {
+  id          String          @id @default(cuid())
+  userId      String
+  institution String?
+  subject     String
+  category    String          // e.g. "BILLING", "AI_GENERATION", "CITATION", "SYSTEM_ACCESS"
+  priority    TicketPriority  @default(MEDIUM)
+  status      TicketStatus    @default(OPEN)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    TicketMessage[]
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model TicketMessage {
+  id          String        @id @default(cuid())
+  ticketId    String
+  sender      MessageSender
+  text        String        @db.Text
+  isInternal  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+enum MessageSender {
+  STUDENT
+  SUPPORT_AGENT
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(INFO)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model University {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  shortName       String           @unique
+  domain          String?
+  location        String
+  campuses        Int              @default(1)
+  programmesCount Int              @default(10)
+  status          UniversityStatus @default(VERIFIED)
+  reportTypes     String[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+enum UniversityStatus {
+  VERIFIED
+  PENDING_REVIEW
+}
+

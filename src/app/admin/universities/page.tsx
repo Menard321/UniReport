@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   GraduationCap, 
   Search, 
@@ -9,20 +9,20 @@ import {
   Clock, 
   Building2, 
   ExternalLink, 
-  Edit3, 
   Trash2, 
   X,
-  BookOpen,
+  RefreshCw,
+  Loader2,
   MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface UniversityItem {
+interface LiveUniversity {
   id: string;
   name: string;
   shortName: string;
   location: string;
-  domain: string;
+  domain: string | null;
   campuses: number;
   programmesCount: number;
   status: "VERIFIED" | "PENDING_REVIEW";
@@ -30,371 +30,332 @@ interface UniversityItem {
 }
 
 export default function AdminUniversitiesPage() {
-  const [universities, setUniversities] = useState<UniversityItem[]>([
-    {
-      id: "u_udsm",
-      name: "University of Dar es Salaam",
-      shortName: "UDSM",
-      location: "Dar es Salaam, Tanzania",
-      domain: "udsm.ac.tz",
-      campuses: 4,
-      programmesCount: 42,
-      status: "VERIFIED",
-      reportTypes: ["Final Year Project (FYP)", "Field Training (IPT)", "Postgraduate Dissertation"]
-    },
-    {
-      id: "u_udom",
-      name: "University of Dodoma",
-      shortName: "UDOM",
-      location: "Dodoma, Tanzania",
-      domain: "udom.ac.tz",
-      campuses: 6,
-      programmesCount: 38,
-      status: "VERIFIED",
-      reportTypes: ["Final Year Project", "Industrial Attachment", "Masters Thesis"]
-    },
-    {
-      id: "u_sua",
-      name: "Sokoine University of Agriculture",
-      shortName: "SUA",
-      location: "Morogoro, Tanzania",
-      domain: "sua.ac.tz",
-      campuses: 3,
-      programmesCount: 29,
-      status: "VERIFIED",
-      reportTypes: ["Special Project", "Practical Training (PT)", "Dissertation"]
-    },
-    {
-      id: "u_ardhi",
-      name: "Ardhi University",
-      shortName: "ARDHI",
-      location: "Dar es Salaam, Tanzania",
-      domain: "aru.ac.tz",
-      campuses: 1,
-      programmesCount: 18,
-      status: "VERIFIED",
-      reportTypes: ["Final Year Dissertation", "Industrial Training (IT)"]
-    },
-    {
-      id: "u_dit",
-      name: "Dar es Salaam Institute of Technology",
-      shortName: "DIT",
-      location: "Dar es Salaam, Tanzania",
-      domain: "dit.ac.tz",
-      campuses: 2,
-      programmesCount: 16,
-      status: "VERIFIED",
-      reportTypes: ["Final Year Engineering Project", "Industrial Practical Training"]
-    },
-    {
-      id: "u_cbe",
-      name: "College of Business Education",
-      shortName: "CBE",
-      location: "Dar es Salaam & Dodoma",
-      domain: "cbe.ac.tz",
-      campuses: 4,
-      programmesCount: 14,
-      status: "VERIFIED",
-      reportTypes: ["Business Research Project", "Field Attachment"]
-    },
-    {
-      id: "u_ifm",
-      name: "Institute of Finance Management",
-      shortName: "IFM",
-      location: "Dar es Salaam, Tanzania",
-      domain: "ifm.ac.tz",
-      campuses: 2,
-      programmesCount: 15,
-      status: "VERIFIED",
-      reportTypes: ["Applied Research Project", "Field Practical Report"]
-    },
-    {
-      id: "u_must",
-      name: "Mbeya University of Science and Technology",
-      shortName: "MUST",
-      location: "Mbeya, Tanzania",
-      domain: "must.ac.tz",
-      campuses: 2,
-      programmesCount: 22,
-      status: "VERIFIED",
-      reportTypes: ["Final Year Engineering Project", "IPT Report"]
-    },
-    {
-      id: "u_muhas",
-      name: "Muhimbili University of Health and Allied Sciences",
-      shortName: "MUHAS",
-      location: "Dar es Salaam, Tanzania",
-      domain: "muhas.ac.tz",
-      campuses: 2,
-      programmesCount: 24,
-      status: "VERIFIED",
-      reportTypes: ["Clinical Research Dissertation", "Public Health Field Report"]
-    },
-    {
-      id: "u_nit",
-      name: "National Institute of Transport",
-      shortName: "NIT",
-      location: "Dar es Salaam, Tanzania",
-      domain: "nit.ac.tz",
-      campuses: 1,
-      programmesCount: 12,
-      status: "VERIFIED",
-      reportTypes: ["Logistics & Engineering Project", "Industrial Training"]
-    },
-    {
-      id: "u_iaa",
-      name: "Institute of Accountancy Arusha",
-      shortName: "IAA",
-      location: "Arusha, Tanzania",
-      domain: "iaa.ac.tz",
-      campuses: 2,
-      programmesCount: 14,
-      status: "VERIFIED",
-      reportTypes: ["Accounting Research Project", "Field Work Report"]
-    }
-  ]);
-
+  const [universities, setUniversities] = useState<LiveUniversity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedUni, setSelectedUni] = useState<UniversityItem | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
 
-  const filtered = universities.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.shortName.toLowerCase().includes(search.toLowerCase()) ||
-      u.location.toLowerCase().includes(search.toLowerCase())
-  );
+  // New University Form State
+  const [name, setName] = useState("");
+  const [shortName, setShortName] = useState("");
+  const [location, setLocation] = useState("");
+  const [domain, setDomain] = useState("");
+  const [campuses, setCampuses] = useState(1);
+  const [programmesCount, setProgrammesCount] = useState(10);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUni) return;
-    setUniversities(universities.map(u => u.id === selectedUni.id ? selectedUni : u));
-    setIsModalOpen(false);
-    setFeedback(`Saved changes for ${selectedUni.shortName}`);
-    setTimeout(() => setFeedback(""), 3000);
+  const fetchUniversities = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/universities");
+      if (res.ok) {
+        const data = await res.json();
+        setUniversities(data.universities || []);
+      }
+    } catch (err) {
+      console.error("Failed to load universities", err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchUniversities();
+  }, []);
+
+  const handleCreateUniversity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !shortName || !location) return;
+
+    try {
+      setSaving(true);
+      const res = await fetch("/api/admin/universities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          shortName,
+          location,
+          domain,
+          campuses,
+          programmesCount,
+          reportTypes: ["Final Year Project (FYP)", "Industrial Practical Training (IPT)"]
+        })
+      });
+
+      if (res.ok) {
+        setFeedback(`Institution ${shortName} added to database.`);
+        setIsAddModalOpen(false);
+        setName("");
+        setShortName("");
+        setLocation("");
+        setDomain("");
+        fetchUniversities();
+        setTimeout(() => setFeedback(""), 3500);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUniversity = async (id: string, uniShort: string) => {
+    if (!confirm(`Are you sure you want to remove ${uniShort}?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/universities?id=${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setUniversities(prev => prev.filter(u => u.id !== id));
+        setFeedback(`Removed institution ${uniShort}.`);
+        setTimeout(() => setFeedback(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filtered = universities.filter(u => {
+    const term = search.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(term) ||
+      u.shortName.toLowerCase().includes(term) ||
+      u.location.toLowerCase().includes(term) ||
+      (u.domain || "").toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold font-heading text-white tracking-tight flex items-center gap-2">
-            <GraduationCap className="size-6 text-teal-400" />
-            Universities & Academic Programmes
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Administer verified Tanzanian higher learning institutions, guidelines, and faculty catalogs.
+          <h1 className="text-2xl font-bold font-heading text-white tracking-tight">Accredited Tanzanian Universities</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Official institutional directory governing report templates and formatting compliance across Tanzania.
           </p>
         </div>
-        <div>
-          <Button
-            size="sm"
-            className="text-xs bg-teal-500 text-slate-950 hover:bg-teal-400 font-semibold"
-            onClick={() => {
-              const newUni: UniversityItem = {
-                id: `u_${Date.now()}`,
-                name: "New Higher Learning Institution",
-                shortName: "NHLI",
-                location: "Tanzania",
-                domain: "nhli.ac.tz",
-                campuses: 1,
-                programmesCount: 5,
-                status: "PENDING_REVIEW",
-                reportTypes: ["Final Year Project", "Field Training"]
-              };
-              setUniversities([newUni, ...universities]);
-              setSelectedUni(newUni);
-              setIsModalOpen(true);
-            }}
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={fetchUniversities} 
+            variant="outline" 
+            size="sm" 
+            className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
           >
-            <Plus className="size-3.5 mr-1.5" /> Add University
+            <RefreshCw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Catalog
+          </Button>
+          <Button 
+            onClick={() => setIsAddModalOpen(true)}
+            size="sm" 
+            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold shadow-sm"
+          >
+            <Plus className="size-4 mr-1.5" /> Add University
           </Button>
         </div>
       </div>
 
       {feedback && (
-        <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg text-xs text-teal-300 flex items-center gap-2">
+        <div className="bg-teal-500/10 border border-teal-500/20 text-teal-300 px-4 py-3 rounded-xl text-xs flex items-center gap-2">
           <CheckCircle2 className="size-4 shrink-0" />
           {feedback}
         </div>
       )}
 
-      {/* Search & Statistics Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
-          <Search className="size-4 text-slate-500 shrink-0 ml-2" />
-          <input
-            type="text"
-            placeholder="Search institution by name, acronym (e.g. UDSM, SUA, DIT), or region..."
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Total Accredited Universities</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-white font-heading">{universities.length}</span>
+            <span className="text-xs font-mono text-teal-400">TCU Catalog</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Total Campuses Mapped</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-teal-400 font-heading">
+              {universities.reduce((acc, u) => acc + u.campuses, 0)}
+            </span>
+            <span className="text-xs font-mono text-teal-400/80">Regional Hubs</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Programmes Covered</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-emerald-400 font-heading">
+              {universities.reduce((acc, u) => acc + u.programmesCount, 0)}
+            </span>
+            <span className="text-xs font-mono text-emerald-400/80">Degree Tracks</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="bg-slate-900/70 p-4 border border-slate-800/80 rounded-xl">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-2.5 size-4 text-slate-500" />
+          <input 
+            type="text" 
+            placeholder="Search university by name, acronym, location..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent text-xs text-slate-200 placeholder-slate-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition-colors"
           />
         </div>
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between px-4 text-xs">
-          <span className="text-slate-400">Total Institutions:</span>
-          <span className="font-bold text-white font-mono text-sm">{universities.length}</span>
+      </div>
+
+      {/* University Grid Cards */}
+      {loading ? (
+        <div className="p-16 text-center text-slate-400">
+          <Loader2 className="size-8 text-teal-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm">Fetching university catalog from PostgreSQL...</p>
         </div>
-      </div>
-
-      {/* University Directory Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((uni) => (
-          <div
-            key={uni.id}
-            className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-teal-400 font-bold font-mono text-xs shadow-inner">
-                  {uni.shortName}
+      ) : filtered.length === 0 ? (
+        <div className="p-16 text-center bg-slate-900/90 border border-slate-800/80 rounded-xl">
+          <GraduationCap className="size-12 text-slate-600 mx-auto mb-3" />
+          <p className="text-base font-semibold text-slate-300">No universities found</p>
+          <p className="text-xs text-slate-500 mt-1">Add your first institution using the button above.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((u) => (
+            <div key={u.id} className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                      {u.shortName}
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                      {u.status}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteUniversity(u.id, u.shortName)}
+                    className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
                 </div>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono flex items-center gap-1 ${
-                  uni.status === "VERIFIED" 
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                }`}>
-                  {uni.status === "VERIFIED" ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
-                  {uni.status === "VERIFIED" ? "TCU Verified" : "Pending Review"}
-                </span>
-              </div>
 
-              <h3 className="font-bold text-white text-sm line-clamp-1">{uni.name}</h3>
-              <p className="text-slate-400 text-xs flex items-center gap-1 mt-1">
-                <MapPin className="size-3 text-slate-500 shrink-0" />
-                {uni.location}
-              </p>
+                <h3 className="font-bold text-sm text-white mt-3 line-clamp-1">{u.name}</h3>
+                
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
+                  <MapPin className="size-3 text-slate-500" />
+                  <span>{u.location}</span>
+                </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400">
-                <div>Campuses: <span className="text-slate-200 font-bold">{uni.campuses}</span></div>
-                <div>Programmes: <span className="text-slate-200 font-bold">{uni.programmesCount}</span></div>
-              </div>
+                {u.domain && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 font-mono">
+                    <ExternalLink className="size-3" />
+                    <span>{u.domain}</span>
+                  </div>
+                )}
 
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {uni.reportTypes.map((rt, i) => (
-                  <span key={i} className="text-[10px] bg-slate-950 text-slate-300 px-2 py-0.5 rounded border border-slate-800/80">
-                    {rt}
-                  </span>
-                ))}
+                <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                  <span>Campuses: <strong className="text-slate-200">{u.campuses}</strong></span>
+                  <span>Programmes: <strong className="text-slate-200">{u.programmesCount}</strong></span>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            <div className="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <a
-                href={`https://${uni.domain}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-teal-400/90 hover:text-teal-300 flex items-center gap-1 font-mono"
-              >
-                {uni.domain} <ExternalLink className="size-2.5" />
-              </a>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    setSelectedUni(uni);
-                    setIsModalOpen(true);
-                  }}
-                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  title="Edit University"
-                >
-                  <Edit3 className="size-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Edit University Modal Dialog */}
-      {isModalOpen && selectedUni && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Building2 className="size-4 text-teal-400" /> Edit University Details
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="size-5" />
+      {/* Add University Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <h3 className="font-semibold text-sm text-white">Add Accredited University</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="size-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateUniversity} className="p-5 space-y-4">
               <div>
-                <label className="text-slate-400 block mb-1">Institution Full Name</label>
-                <input
-                  type="text"
-                  value={selectedUni.name}
-                  onChange={(e) => setSelectedUni({ ...selectedUni, name: e.target.value })}
-                  className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
+                <label className="block text-xs font-medium text-slate-400 mb-1">Full Institution Name</label>
+                <input 
+                  type="text" 
                   required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. State University of Zanzibar" 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-400 block mb-1">Acronym / Short Name</label>
-                  <input
-                    type="text"
-                    value={selectedUni.shortName}
-                    onChange={(e) => setSelectedUni({ ...selectedUni, shortName: e.target.value })}
-                    className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Acronym</label>
+                  <input 
+                    type="text" 
                     required
+                    value={shortName}
+                    onChange={(e) => setShortName(e.target.value)}
+                    placeholder="e.g. SUZA" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-400 block mb-1">Official Domain</label>
-                  <input
-                    type="text"
-                    value={selectedUni.domain}
-                    onChange={(e) => setSelectedUni({ ...selectedUni, domain: e.target.value })}
-                    className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                    required
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Domain</label>
+                  <input 
+                    type="text" 
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    placeholder="e.g. suza.ac.tz" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Location / City</label>
+                <input 
+                  type="text" 
+                  required
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Zanzibar, Tanzania" 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-400 block mb-1">Location</label>
-                  <input
-                    type="text"
-                    value={selectedUni.location}
-                    onChange={(e) => setSelectedUni({ ...selectedUni, location: e.target.value })}
-                    className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                    required
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Campuses</label>
+                  <input 
+                    type="number" 
+                    min={1}
+                    value={campuses}
+                    onChange={(e) => setCampuses(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-400 block mb-1">Verification Status</label>
-                  <select
-                    value={selectedUni.status}
-                    onChange={(e) => setSelectedUni({ ...selectedUni, status: e.target.value as any })}
-                    className="w-full h-9 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="VERIFIED">VERIFIED (TCU Accredited)</option>
-                    <option value="PENDING_REVIEW">PENDING_REVIEW</option>
-                  </select>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Programmes Count</label>
+                  <input 
+                    type="number" 
+                    min={1}
+                    value={programmesCount}
+                    onChange={(e) => setProgrammesCount(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2.5">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-white"
-                >
+              <div className="p-4 border-t border-slate-800 -mx-5 -mb-5 bg-slate-950/40 flex justify-end gap-3 mt-6">
+                <Button variant="ghost" size="sm" type="button" onClick={() => setIsAddModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  size="sm" 
-                  className="bg-teal-500 text-slate-950 hover:bg-teal-400 font-semibold"
-                >
-                  Save University
+                <Button size="sm" type="submit" disabled={saving} className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold">
+                  {saving ? "Saving..." : "Add to Database"}
                 </Button>
               </div>
             </form>

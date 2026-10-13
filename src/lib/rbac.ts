@@ -7,15 +7,7 @@ export interface UserSession {
   role: Role;
 }
 
-// Current mocked session globally
-export const getCurrentSession = (): UserSession => {
-  return {
-    id: "admin_u1",
-    name: "System Administrator",
-    email: "admin@unireport.tz",
-    role: "UNIREPORT_ADMIN"
-  };
-};
+
 
 export const hasPermission = (userRole: Role, requiredRole: Role): boolean => {
   const roleHierarchy: Record<Role, number> = {

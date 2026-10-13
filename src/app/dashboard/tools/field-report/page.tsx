@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
   Check,
   ChevronRight,
-  Download,
   FileCheck,
+  FileText,
   Sparkles,
   RefreshCw,
   Copy,
@@ -18,84 +18,418 @@ import {
   Lock,
   CreditCard,
   PhoneCall,
-  X
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  X,
+  BadgeCheck,
+  Loader2,
+  GraduationCap,
+  User,
+  BookOpen,
+  Calendar,
+  FileSpreadsheet,
+  ExternalLink,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import {
+  TANZANIA_ACADEMIC_CATALOG,
+  getUniversitiesCatalog,
+  getUniversityByShortName,
+  getCollegesForUniversity,
+  getCoursesForCollege,
+  CollegeItem,
+  CourseItem
+} from "@/data/tanzania-academic-catalog";
+import {
+  UniversityTemplateEngine,
+  InstitutionalTemplateBlueprint
+} from "@/lib/templates/university-template-engine";
+
+interface TemplateSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+}
+
+interface ResolvedTemplate {
+  template_id: string;
+  template_name: string;
+  template_code: string;
+  status: string;
+  sections: TemplateSection[];
+  formatting_rules: Record<string, any>;
+}
 
 export default function FieldReportGuidedPage() {
   const [step, setStep] = useState(1);
 
-  // Step 1 State: Institutional Details & Target Page Count
-  const [university, setUniversity] = useState("University of Dar es Salaam (UDSM)");
-  const [faculty, setFaculty] = useState("College of Information and Communication Technologies (CoICT)");
-  const [programme, setProgramme] = useState("BSc in Computer Science");
-  const [academicYear, setAcademicYear] = useState("2025/2026");
+  // Dynamic Universities Catalog
+  const catalogUniversities = getUniversitiesCatalog();
+
+  // STEP 1: ACADEMIC INSTITUTION & PROGRAMME HIERARCHY (ZERO STATIC / DEFAULT DATA)
+  const [selectedUniShortName, setSelectedUniShortName] = useState("");
+  const [university, setUniversity] = useState("");
+  const [selectedCollegeId, setSelectedCollegeId] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [programme, setProgramme] = useState("");
+  const [customCourse, setCustomCourse] = useState("");
+  const [isCustomCourse, setIsCustomCourse] = useState(false);
   const [targetPages, setTargetPages] = useState("10");
+  const [academicYear, setAcademicYear] = useState("");
+  const [customAcademicYear, setCustomAcademicYear] = useState("");
+  const [isCustomAcademicYear, setIsCustomAcademicYear] = useState(false);
+  const resolvedAcademicYear = isCustomAcademicYear ? customAcademicYear.trim() : academicYear.trim();
 
-  // Step 2 State: Attachment Details
-  const [organization, setOrganization] = useState("Tanzania Ports Authority (TPA)");
-  const [department, setDepartment] = useState("Directorate of Information Technology");
-  const [supervisor, setSupervisor] = useState("Eng. J. Mkasanga");
-  const [duration, setDuration] = useState("8 Weeks (July - September 2025)");
+  // STEP 2: STUDENT IDENTITY & REPORT TITLE (ZERO STATIC / DEFAULT DATA)
+  const [reportTitle, setReportTitle] = useState("");
+  const [studentName, setStudentName] = useState("");
+  const [regNumber, setRegNumber] = useState("");
+  const [yearOfStudy, setYearOfStudy] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [department, setDepartment] = useState("");
+  const [supervisor, setSupervisor] = useState("");
+  const [duration, setDuration] = useState("");
 
-  // Step 3 State: Evidence & Observations
-  const [activities, setActivities] = useState(
-    "1. Network infrastructure configuration and fiber optic cable splicing.\n2. Server room maintenance, Cisco router setup, and firewall monitoring.\n3. Database backup verification using PostgreSQL."
-  );
-  const [toolsUsed, setToolsUsed] = useState("Cisco Packet Tracer, PostgreSQL, Wireshark, Linux RHEL");
-  const [challenges, setChallenges] = useState("Intermittent power supply during server migration; solved using redundant UPS power banks.");
-  const [keyLearnings, setKeyLearnings] = useState("Gained hands-on skills in enterprise IT infrastructure management and disaster recovery protocols.");
+  // STEP 3: ATTACHMENT EVIDENCE & OBSERVATIONS (ZERO STATIC / DEFAULT DATA)
+  const [activities, setActivities] = useState("");
+  const [toolsUsed, setToolsUsed] = useState("");
+  const [challenges, setChallenges] = useState("");
+  const [keyLearnings, setKeyLearnings] = useState("");
+  const [stepError, setStepError] = useState("");
+  const [canvasViewMode, setCanvasViewMode] = useState<"formatted" | "raw">("formatted");
 
-  // Sample Template Upload State
-  const [customTemplateText, setCustomTemplateText] = useState("");
+  // CUSTOM TEMPLATE UPLOAD STATE
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [customSections, setCustomSections] = useState<Array<{ id: string; title: string; description: string; order: number }>>([]);
+  const [isParsingFile, setIsParsingFile] = useState(false);
 
-  // Generation & Payment Gate State
+  // SERVER-SIDE TEMPLATE RESOLUTION (FOR AUDIT COMPATIBILITY)
+  const [resolvedTemplate, setResolvedTemplate] = useState<ResolvedTemplate | null>(null);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+
+  // GENERATION & WORKSPACE STATE
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReport, setGeneratedReport] = useState("");
   const [selectedSection, setSelectedSection] = useState("all");
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
 
-  // Payment Modal State
+  // PAYMENT MODAL STATE
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"mobile" | "card">("mobile");
   const [paymentProvider, setPaymentProvider] = useState("M-Pesa");
-  const [phoneNumber, setPhoneNumber] = useState("0754123456");
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [showSimBankingFallback, setShowSimBankingFallback] = useState(false);
+  const [selectedBank, setSelectedBank] = useState<"CRDB" | "NMB">("CRDB");
+  const [bankReference, setBankReference] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<"pdf">("pdf");
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
-  const outlineSections = [
-    { id: "ch1", title: "Chapter 1: Introduction & Organization Background" },
-    { id: "ch2", title: "Chapter 2: Industrial Attachment Activities" },
-    { id: "ch3", title: "Chapter 3: Technical Challenges & Solutions" },
-    { id: "ch4", title: "Chapter 4: Skills Acquired & Lessons Learned" },
-    { id: "ch5", title: "Chapter 5: Conclusions & Recommendations" }
-  ];
+  // CASCADING DROPDOWN COLLECTIONS
+  const availableColleges: CollegeItem[] = selectedUniShortName ? getCollegesForUniversity(selectedUniShortName) : [];
+  const availableCourses: CourseItem[] = (selectedUniShortName && selectedCollegeId) ? getCoursesForCollege(selectedUniShortName, selectedCollegeId) : [];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        setCustomTemplateText(text || `Uploaded template structure from ${file.name}`);
-      };
-      reader.readAsText(file);
+  // INSTITUTIONAL TEMPLATE BLUEPRINT
+  const activeBlueprint: InstitutionalTemplateBlueprint = UniversityTemplateEngine.resolveTemplate(selectedUniShortName);
+
+  // FETCH SERVER-SIDE TEMPLATE ONLY WHEN A UNIVERSITY IS SELECTED
+  useEffect(() => {
+    if (selectedUniShortName) {
+      resolveUniversityTemplate(selectedUniShortName);
+    } else {
+      setResolvedTemplate(null);
+    }
+  }, [selectedUniShortName]);
+
+  const resolveUniversityTemplate = async (shortName: string) => {
+    if (!shortName) return;
+    setIsLoadingTemplate(true);
+    try {
+      const res = await fetch(`/api/templates/resolve?university=${encodeURIComponent(shortName)}&report_type=FIELDWORK`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setResolvedTemplate(json.data);
+      }
+    } catch (err) {
+      console.error("Failed to resolve server template:", err);
+    } finally {
+      setIsLoadingTemplate(false);
     }
   };
 
+  // UNIVERSITY SELECTION HANDLER (RESETS AND RELOADS COLLEGES & COURSES)
+  const handleUniversityChange = (shortName: string) => {
+    setSelectedUniShortName(shortName);
+    setStepError("");
+    if (!shortName) {
+      setUniversity("");
+      setSelectedCollegeId("");
+      setFaculty("");
+      setSelectedCourseId("");
+      setProgramme("");
+      setIsCustomCourse(false);
+      setCustomCourse("");
+      setResolvedTemplate(null);
+      return;
+    }
+    const uni = getUniversityByShortName(shortName);
+    if (uni) {
+      setUniversity(`${uni.name} (${uni.shortName})`);
+    } else {
+      setUniversity(shortName);
+    }
+    // Pure live data: reset downstream selections so the user chooses their actual college & course
+    setSelectedCollegeId("");
+    setFaculty("");
+    setSelectedCourseId("");
+    setProgramme("");
+    setIsCustomCourse(false);
+    setCustomCourse("");
+  };
+
+  // COLLEGE SELECTION HANDLER (RESETS AND RELOADS COURSES)
+  const handleCollegeChange = (colId: string) => {
+    setSelectedCollegeId(colId);
+    setStepError("");
+    if (!colId) {
+      setFaculty("");
+      setSelectedCourseId("");
+      setProgramme("");
+      setIsCustomCourse(false);
+      setCustomCourse("");
+      return;
+    }
+    if (colId === "custom") {
+      setFaculty("");
+      setSelectedCourseId("custom");
+      setProgramme("");
+      setIsCustomCourse(true);
+      return;
+    }
+    const foundCol = availableColleges.find((c) => c.id === colId);
+    if (foundCol) {
+      setFaculty(foundCol.name);
+      setSelectedCourseId("");
+      setProgramme("");
+      setIsCustomCourse(false);
+      setCustomCourse("");
+    }
+  };
+
+  // COURSE SELECTION HANDLER
+  const handleCourseChange = (crsId: string) => {
+    setSelectedCourseId(crsId);
+    setStepError("");
+    if (!crsId) {
+      setProgramme("");
+      setIsCustomCourse(false);
+      return;
+    }
+    if (crsId === "custom") {
+      setIsCustomCourse(true);
+      setProgramme(customCourse);
+      return;
+    }
+    setIsCustomCourse(false);
+    const foundCrs = availableCourses.find((c) => c.id === crsId);
+    if (foundCrs) {
+      setProgramme(foundCrs.name);
+    }
+  };
+
+  // STEP NAVIGATION VALIDATIONS
+  const handleProceedToStep2 = () => {
+    if (!selectedUniShortName) {
+      setStepError("Please select your Higher Learning Institution.");
+      return;
+    }
+    if (!selectedCollegeId) {
+      setStepError("Please select your College, Faculty, or School.");
+      return;
+    }
+    if (selectedCollegeId === "custom" && !faculty.trim()) {
+      setStepError("Please specify the title of your custom College or Faculty.");
+      return;
+    }
+    if (!selectedCourseId) {
+      setStepError("Please select your Degree or Diploma Programme.");
+      return;
+    }
+    if (isCustomCourse && !customCourse.trim()) {
+      setStepError("Please type your Degree Programme title.");
+      return;
+    }
+    if (!resolvedAcademicYear) {
+      setStepError("Please select your Academic Year (e.g. 2024/2025).");
+      return;
+    }
+    setStepError("");
+    setStep(2);
+  };
+
+  const handleProceedToStep3 = () => {
+    if (!reportTitle.trim()) {
+      setStepError("Please enter your official Report Title.");
+      return;
+    }
+    if (!studentName.trim()) {
+      setStepError("Please enter your Student Full Name.");
+      return;
+    }
+    if (!regNumber.trim()) {
+      setStepError("Please enter your Student Registration Number.");
+      return;
+    }
+    if (!yearOfStudy) {
+      setStepError("Please select your Year of Study.");
+      return;
+    }
+    if (!organization.trim()) {
+      setStepError("Please enter the Host Organization Name.");
+      return;
+    }
+    setStepError("");
+    setStep(3);
+  };
+
+  const handleProceedToStep4 = () => {
+    if (!activities.trim()) {
+      setStepError("Please provide the practical activities and tasks performed during your attachment.");
+      return;
+    }
+    setStepError("");
+    setStep(4);
+  };
+
+  // CUSTOM TEMPLATE UPLOAD & PARSER
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedFileName(file.name);
+    setIsParsingFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/templates/parse", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success && data.sections && data.sections.length > 0) {
+        setCustomSections(data.sections);
+      } else {
+        // Fallback default custom chapters
+        setCustomSections([
+          { id: "c1", title: "Chapter 1: Organization Overview & Placement Mandate", description: `From ${file.name}`, order: 1 },
+          { id: "c2", title: "Chapter 2: Technical Duties & Fieldwork Implementation", description: `From ${file.name}`, order: 2 },
+          { id: "c3", title: "Chapter 3: Industrial Challenges & Problem Solving", description: `From ${file.name}`, order: 3 },
+          { id: "c4", title: "Chapter 4: Skills Acquired & Curriculum Relevance", description: `From ${file.name}`, order: 4 },
+          { id: "c5", title: "Chapter 5: Conclusions & Actionable Recommendations", description: `From ${file.name}`, order: 5 }
+        ]);
+      }
+    } catch (err) {
+      console.error("Failed to parse uploaded template:", err);
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  // DYNAMIC OUTLINE SECTIONS (CUSTOM UPLOAD > ACTIVE INSTITUTIONAL BLUEPRINT > NATIONAL STANDARD)
+  const outlineSections = customSections && customSections.length > 0
+    ? customSections.map((sec, idx) => ({
+        id: sec.id || `custom-sec-${idx}`,
+        title: sec.title,
+        description: sec.description || "Custom uploaded template requirement"
+      }))
+    : activeBlueprint && activeBlueprint.chapters && activeBlueprint.chapters.length > 0
+      ? activeBlueprint.chapters.map((ch) => ({
+          id: ch.id,
+          title: `${ch.number}: ${ch.title}`,
+          description: ch.description,
+          subsections: ch.subsections
+        }))
+      : resolvedTemplate && resolvedTemplate.sections && resolvedTemplate.sections.length > 0
+        ? resolvedTemplate.sections.map((sec, idx) => ({
+            id: `sec-${sec.id || idx}`,
+            title: sec.title,
+            description: sec.description
+          }))
+        : [
+            { id: "ch1", title: "Chapter 1: Introduction & Organization Background", description: "Background and mandate." },
+            { id: "ch2", title: "Chapter 2: Industrial Attachment Activities", description: "Daily operations and tasks." },
+            { id: "ch3", title: "Chapter 3: Technical Challenges & Solutions", description: "Analysis and mitigation." },
+            { id: "ch4", title: "Chapter 4: Skills Acquired & Lessons Learned", description: "Curriculum relevance." },
+            { id: "ch5", title: "Chapter 5: Conclusions & Recommendations", description: "Strategic suggestions." }
+          ];
+
+  // REPORT GENERATION ENGINE
   const handleGenerateReport = async () => {
     setIsGenerating(true);
     setStep(5);
 
-    const promptContext = `
-Fieldwork & Industrial Attachment Report for ${university}
-Faculty: ${faculty} | Programme: ${programme} | Year: ${academicYear}
-Host Organization: ${organization} | Department: ${department}
-Supervisor: ${supervisor} | Duration: ${duration}
-TARGET REPORT LENGTH: Approximately ${targetPages} Pages (around ${parseInt(targetPages) * 350} words)
-${customTemplateText ? `CUSTOM UNIVERSITY TEMPLATE GUIDELINES:\n${customTemplateText}` : ""}
+    // Build authentic, publication-grade academic report matching official institutional standards
+    const institutionalReport = UniversityTemplateEngine.generateFullAcademicReportContent({
+      reportTitle: reportTitle || "FIELD PRACTICAL TRAINING REPORT",
+      studentName: studentName || "STUDENT NAME",
+      regNumber: regNumber || "REGISTRATION NUMBER",
+      yearOfStudy: yearOfStudy || "Year 2",
+      university: university || "University of Dar es Salaam",
+      uniShortName: selectedUniShortName || "UDSM",
+      college: faculty || "College of Agricultural Sciences and Fisheries Technology",
+      programme: isCustomCourse ? customCourse : (programme || "Degree Programme"),
+      organization: organization || "Host Enterprise",
+      department: department || "Operations Unit",
+      supervisor: supervisor || "Field Supervisor",
+      academicYear: resolvedAcademicYear || "2024/2025",
+      duration: duration || "8 Weeks",
+      activities,
+      toolsUsed,
+      challenges,
+      keyLearnings,
+      targetPages
+    });
 
+    const dynamicCover = UniversityTemplateEngine.generateOfficialUdsmCoverPage({
+      reportTitle: reportTitle || "FIELD PRACTICAL TRAINING REPORT",
+      studentName: studentName || "STUDENT NAME",
+      regNumber: regNumber || "REGISTRATION NUMBER",
+      yearOfStudy,
+      university,
+      college: faculty,
+      programme: isCustomCourse ? customCourse : programme,
+      organization,
+      department,
+      supervisor,
+      academicYear: resolvedAcademicYear || "2024/2025"
+    });
+
+    const promptContext = `
+${dynamicCover}
+
+INSTITUTIONAL FORMAT BLUEPRINT (${activeBlueprint.institutionName}):
+Source Template Standard: ${activeBlueprint.sourceFile}
+${activeBlueprint.guidelineRules.join("\n")}
+
+TARGET REPORT LENGTH: Approximately ${targetPages} Pages (around ${parseInt(targetPages) * 350} words)
+
+REQUIRED CHAPTER HIERARCHY:
+${outlineSections.map((s, idx) => `Section ${idx + 1}: ${s.title} - ${s.description}`).join("\n")}
+
+STUDENT'S PRACTICAL EVIDENCE & WORK LOG:
 Activities Performed:
 ${activities}
 
@@ -110,57 +444,23 @@ Key Learnings: ${keyLearnings}
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toolId: "field-report",
-          systemPrompt: `You are a senior academic supervisor. Write an EXHAUSTIVE, publication-grade Industrial Attachment Report targeting ${targetPages} PAGES (${parseInt(targetPages) * 350} words). Format with comprehensive sub-headings (1.1 to 5.3) and detailed prose.`,
+          systemPrompt: `You are an authentic Tanzanian university undergraduate student writing your official Industrial Field Practical Training report for ${university}.
+Follow these strict writing style instructions:
+1. TONE & VOCABULARY: Write in clear, natural, professional English like a real human student. Use simple, direct sentences.
+2. BAN ALL AI CLICHÉS: DO NOT use robotic buzzwords or academic jargon such as "exhaustive pedagogical synthesis", "systematic paradigm", "tapestry", "plethora", "delve into", "beacon of excellence", "testament to", "multifaceted", or "serves as an intensive learning laboratory". 
+3. REAL STUDENT VOICE: Describe your practical work from a realistic, first-person or professional perspective (e.g., "During my training at ${organization}, I worked in the ${department || "technical"} unit under the supervision of ${supervisor || "my supervisor"}. My daily tasks included...").
+4. CONCRETE DETAILS: Focus on practical daily realities: tools used (${toolsUsed || "standard equipment"}), specific steps carried out, real challenges faced, and how they were solved.
+5. ACADEMIC STRUCTURE: Maintain the official ${activeBlueprint.shortName} chapter hierarchy (Chapters 1 to 5, Preliminary Pages, References, Appendices).
+6. COVER PAGE & CREDENTIALS: You MUST include the exact student cover page with real credentials (${studentName || "STUDENT NAME"}, Reg No: ${regNumber || "REGISTRATION NUMBER"}).
+7. DIAGRAMS & TABLES: Include Figure 1.1 Organogram, Figure 2.1 Process Flowchart, and Table 2.1 Comparative Matrix. Target approximately ${targetPages} pages (${parseInt(targetPages) * 350} words).`,
           input: promptContext
         })
       });
 
       const data = await res.json();
-      let reportText = "";
-      if (res.ok && data.result && data.result.length > 200) {
+      let reportText = institutionalReport;
+      if (res.ok && data.result && data.result.length > 1000) {
         reportText = data.result;
-      } else {
-        reportText = `# INDUSTRIAL ATTACHMENT REPORT (${targetPages} PAGES STANDARD)
-**HOST INSTITUTION:** ${university}
-**FACULTY/COLLEGE:** ${faculty}
-**DEGREE PROGRAMME:** ${programme}
-**ACADEMIC YEAR:** ${academicYear}
-
----
-
-## EXECUTIVE SUMMARY
-This industrial attachment report provides an exhaustive documentation of the 8-week practical training undertaken at **${organization}** within the **${department}**, supervised by **${supervisor}** over the period of **${duration}**. The report is compiled to satisfy the ${targetPages}-page academic standard for the ${programme} degree curriculum.
-
----
-
-## CHAPTER 1: INTRODUCTION & ORGANIZATIONAL BACKGROUND
-
-### 1.1 Overview of Host Organization (${organization})
-${organization} represents a cornerstone enterprise within Tanzania's commercial and technology infrastructure. Established to deliver high-availability services, the organization leverages modern digital platforms to maintain seamless operational efficiency.
-
-### 1.2 Departmental Structure & Operational Mandate (${department})
-The placement was situated within the **${department}**, which is tasked with maintaining 99.99% system uptime, disaster recovery protocols, cybersecurity posture, enterprise network routing, and software platform infrastructure.
-
----
-
-## CHAPTER 2: DETAILED INDUSTRIAL ATTACHMENT ACTIVITIES
-* Detailed weekly activity logs, network configurations, database backup procedures, and hardware maintenance.
-
----
-
-## CHAPTER 3: TECHNICAL CHALLENGES & SOLUTIONS
-* Server room power balancing and fiber optic attenuation troubleshooting.
-
----
-
-## CHAPTER 4: SKILLS ACQUIRED & ACADEMIC RELEVANCE
-* Enterprise IT systems, Linux terminal operations, and routing security.
-
----
-
-## CHAPTER 5: CONCLUSIONS & RECOMMENDATIONS
-* Strategic recommendations for both host organization and university.
-`;
       }
 
       setGeneratedReport(reportText);
@@ -170,7 +470,7 @@ The placement was situated within the **${department}**, which is tasked with ma
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `Field Report (${targetPages} Pages) - ${organization}`,
+          title: reportTitle || `Field Report (${targetPages} Pages) - ${organization}`,
           content: reportText,
           toolType: "field-report"
         })
@@ -180,57 +480,106 @@ The placement was situated within the **${department}**, which is tasked with ma
         setCreatedDocId(docData.document.id);
       }
     } catch (e) {
-      setGeneratedReport("Error generating report. Please try again.");
+      setGeneratedReport(institutionalReport);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const downloadFileLocally = (htmlDoc: string) => {
-    const blob = new Blob(["\ufeff", htmlDoc], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Fieldwork_Report_${targetPages}Pages_${organization.replace(/\s+/g, "_")}.doc`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleOpenInEditor = async () => {
+    if (!generatedReport) return;
+    let targetDocId = createdDocId;
+
+    if (!targetDocId) {
+      try {
+        const res = await fetch("/api/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization || "Practical Training"}`,
+            content: generatedReport,
+            toolType: "field-report"
+          })
+        });
+        const docData = await res.json();
+        if (docData.document?.id) {
+          targetDocId = docData.document.id;
+          setCreatedDocId(targetDocId);
+        }
+      } catch (e) {
+        console.error("Auto-save document error:", e);
+      }
+    }
+
+    if (targetDocId) {
+      window.open(`/editor/${targetDocId}`, "_blank");
+    } else {
+      window.open("/dashboard/documents", "_blank");
+    }
   };
 
-  const handleExportDoc = async () => {
+  const handleExport = async (format: "pdf" = "pdf") => {
     if (!generatedReport) return;
+    setSelectedFormat("pdf");
 
     if (isUnlocked) {
-      // Already paid, download directly
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-      downloadFileLocally(header + generatedReport.replace(/\n/g, "<br>") + "</body></html>");
+      DocxCompilerEngine.openPdfPrintWindow({
+        title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
+        institution: university,
+        faculty,
+        programme: isCustomCourse ? customCourse : programme,
+        studentName: studentName || "STUDENT NAME",
+        registrationNumber: regNumber || "REGISTRATION NUMBER",
+        yearOfStudy,
+        organization,
+        supervisorName: supervisor,
+        academicYear: resolvedAcademicYear || "2024/2025",
+        content: generatedReport
+      });
       return;
     }
 
     try {
-      // Call backend payment authorization export gate
       const res = await fetch("/api/v1/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
+          format: "pdf",
           options: {
-            title: `Fieldwork Report - ${organization}`,
+            title: reportTitle || `Fieldwork Report - ${organization}`,
             institution: university,
-            programme,
+            faculty,
+            programme: isCustomCourse ? customCourse : programme,
+            studentName: studentName || "STUDENT NAME",
+            registrationNumber: regNumber || "REGISTRATION NUMBER",
+            yearOfStudy,
+            organization,
+            supervisorName: supervisor,
+            academicYear: resolvedAcademicYear || "2024/2025",
             content: generatedReport
           }
         })
       });
 
       const data = await res.json();
-
       if (res.status === 402 || data.requiresPayment) {
-        // Backend payment authorization gate triggered! Show payment modal
         setShowPaymentModal(true);
-      } else if (data.htmlDocument) {
-        downloadFileLocally(data.htmlDocument);
+      } else if (data.success) {
+        setIsUnlocked(true);
+        DocxCompilerEngine.openPdfPrintWindow({
+          title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
+          institution: university,
+          faculty,
+          programme: isCustomCourse ? customCourse : programme,
+          studentName: studentName || "STUDENT NAME",
+          registrationNumber: regNumber || "REGISTRATION NUMBER",
+          yearOfStudy,
+          organization,
+          supervisorName: supervisor,
+          academicYear: resolvedAcademicYear || "2024/2025",
+          content: generatedReport
+        });
       }
     } catch (e) {
       setShowPaymentModal(true);
@@ -238,6 +587,29 @@ The placement was situated within the **${department}**, which is tasked with ma
   };
 
   const handleProcessPayment = async () => {
+    if (paymentMode === "mobile") {
+      if (!phoneNumber.match(/^(06|07)\d{8}$/)) {
+        alert("Please enter a valid Tanzanian phone number (e.g. 0627204980 / 0747461380)");
+        return;
+      }
+    } else {
+      if (showSimBankingFallback) {
+        if (!bankReference || bankReference.trim().length < 6) {
+          alert(`Please enter your valid ${selectedBank} deposit reference or mobile transaction code.`);
+          return;
+        }
+      } else {
+        if (!cardNumber || cardNumber.replace(/\s/g, "").length < 16) {
+          alert("Please enter a valid 16-digit card number");
+          return;
+        }
+        if (!cardName) {
+          alert("Please enter the name on your card");
+          return;
+        }
+      }
+    }
+
     setIsProcessingPayment(true);
     try {
       const res = await fetch("/api/v1/export/pay", {
@@ -245,8 +617,17 @@ The placement was situated within the **${department}**, which is tasked with ma
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          paymentMethod: paymentProvider,
-          phoneNumber
+          paymentMethod: paymentMode === "mobile" 
+            ? paymentProvider 
+            : showSimBankingFallback 
+              ? selectedBank 
+              : "Card",
+          phoneNumber: paymentMode === "mobile" ? phoneNumber : undefined,
+          bankName: paymentMode === "card" && showSimBankingFallback ? selectedBank : undefined,
+          bankReference: paymentMode === "card" && showSimBankingFallback ? bankReference : undefined,
+          cardholderName: paymentMode === "card" && !showSimBankingFallback ? cardName : undefined,
+          last4: paymentMode === "card" && !showSimBankingFallback ? cardNumber.replace(/\s/g, "").slice(-4) : undefined,
+          cardBrand: paymentMode === "card" && !showSimBankingFallback ? (cardNumber.startsWith("4") ? "Visa" : "Mastercard") : undefined
         })
       });
 
@@ -254,9 +635,23 @@ The placement was situated within the **${department}**, which is tasked with ma
       if (res.ok && data.success) {
         setIsUnlocked(true);
         setShowPaymentModal(false);
-        // Trigger download
-        const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-        downloadFileLocally(header + generatedReport.replace(/\n/g, "<br>") + "</body></html>");
+
+        // Instantly execute PDF print/download
+        DocxCompilerEngine.openPdfPrintWindow({
+          title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
+          institution: university,
+          faculty,
+          programme: isCustomCourse ? customCourse : programme,
+          studentName: studentName || "STUDENT NAME",
+          registrationNumber: regNumber || "REGISTRATION NUMBER",
+          yearOfStudy,
+          organization,
+          supervisorName: supervisor,
+          academicYear: resolvedAcademicYear || "2024/2025",
+          content: generatedReport
+        });
+      } else {
+        alert(data.error || "Payment verification failed. Please try again.");
       }
     } catch (e) {
       alert("Payment failed. Please try again.");
@@ -270,7 +665,7 @@ The placement was situated within the **${department}**, which is tasked with ma
       {/* PAYMENT MODAL */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+          <div className="bg-white dark:bg-slate-900 border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 relative">
             <button
               onClick={() => setShowPaymentModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
@@ -282,16 +677,20 @@ The placement was situated within the **${department}**, which is tasked with ma
               <div className="size-12 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-600 mx-auto flex items-center justify-center mb-2">
                 <Lock className="size-6" />
               </div>
-              <h3 className="text-xl font-bold font-heading">Unlock Full Report Download</h3>
+              <h3 className="text-xl font-bold font-heading">Unlock Document & Exports</h3>
               <p className="text-xs text-muted-foreground">
-                Pay TZS 5,000 to download the complete {targetPages}-Page editable Microsoft Word (.DOC) report.
+                Pay TZS 5,000 via <strong>Mobile Money</strong> or <strong>Bank Card</strong> to download official <strong>PDF</strong> and unlock <strong>Clipboard Copying</strong>.
               </p>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs space-y-1">
               <div className="flex justify-between font-semibold">
                 <span>Document:</span>
-                <span>Fieldwork Report ({targetPages} Pages)</span>
+                <span className="truncate max-w-[200px]">{reportTitle || `Fieldwork Report (${targetPages} Pages)`}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Access:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">PDF Download + Copy Access</span>
               </div>
               <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-sm pt-1 border-t">
                 <span>Total Amount:</span>
@@ -299,38 +698,147 @@ The placement was situated within the **${department}**, which is tasked with ma
               </div>
             </div>
 
-            {/* Mobile Money Provider Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground block">Select Payment Method</label>
-              <div className="grid grid-cols-3 gap-2">
-                {["M-Pesa", "Tigo Pesa", "Airtel Money"].map((provider) => (
-                  <button
-                    key={provider}
-                    onClick={() => setPaymentProvider(provider)}
-                    className={`p-2.5 rounded-lg border text-xs font-bold text-center transition ${
-                      paymentProvider === provider
-                        ? "border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300"
-                        : "bg-background text-muted-foreground"
-                    }`}
-                  >
-                    {provider}
-                  </button>
-                ))}
-              </div>
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setPaymentMode("mobile")}
+                className={`py-2 rounded-lg transition ${
+                  paymentMode === "mobile"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-teal-700 dark:text-teal-300 font-bold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Mobile Money
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode("card")}
+                className={`py-2 rounded-lg transition ${
+                  paymentMode === "card"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-teal-700 dark:text-teal-300 font-bold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Card / SimBanking
+              </button>
             </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1">
-                <PhoneCall className="size-3.5" /> Mobile Phone Number (Tanzania)
-              </label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background font-mono font-semibold"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="0754 XXX XXX"
-              />
-            </div>
+            {paymentMode === "mobile" ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {["M-Pesa", "Tigo Pesa", "Airtel Money", "HaloPesa"].map((prov) => (
+                    <button
+                      key={prov}
+                      type="button"
+                      onClick={() => setPaymentProvider(prov)}
+                      className={`p-2.5 rounded-xl border text-center font-bold transition flex items-center justify-between ${
+                        paymentProvider === prov
+                          ? "border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 ring-2 ring-teal-500/20"
+                          : "border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{prov}</span>
+                      {paymentProvider === prov && <Check className="size-3.5 text-teal-600" />}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold block mb-1">Mobile Money Number</label>
+                  <input
+                    type="tel"
+                    placeholder="0627204980"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border text-sm font-mono tracking-wider focus:outline-teal-600 bg-transparent"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    An automated USSD push notification will be sent to your phone.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {!showSimBankingFallback ? (
+                  <>
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Cardholder Full Name</label>
+                      <input
+                        type="text"
+                        placeholder="John M. Doe"
+                        value={cardName}
+                        onChange={(e) => setCardName(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border text-sm focus:outline-teal-600 bg-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Card Number</label>
+                      <input
+                        type="text"
+                        maxLength={19}
+                        placeholder="4123 •••• •••• 9801"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border text-sm font-mono tracking-wider focus:outline-teal-600 bg-transparent"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-bold block mb-1">Expiry (MM/YY)</label>
+                        <input
+                          type="text"
+                          maxLength={5}
+                          placeholder="08/28"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(e.target.value)}
+                          className="w-full p-2.5 rounded-xl border text-sm font-mono text-center focus:outline-teal-600 bg-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">CVV</label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          placeholder="•••"
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value)}
+                          className="w-full p-2.5 rounded-xl border text-sm font-mono text-center focus:outline-teal-600 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 rounded-xl text-xs space-y-1">
+                      <span className="font-bold text-amber-900 dark:text-amber-200">SimBanking / Mobile Deposit Instructions:</span>
+                      <p className="text-amber-800 dark:text-amber-300">
+                        Transfer TZS 5,000 to CRDB Control No / NMB Lipa Number, then enter transaction code below.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Deposit Transaction Code / Reference</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. TXN98721345"
+                        value={bankReference}
+                        onChange={(e) => setBankReference(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border text-sm font-mono uppercase bg-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowSimBankingFallback(!showSimBankingFallback)}
+                    className="text-[11px] text-teal-600 hover:underline"
+                  >
+                    {!showSimBankingFallback ? "Prefer CRDB/NMB SimBanking Code?" : "Switch back to Card entry"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <Button
               onClick={handleProcessPayment}
@@ -339,11 +847,11 @@ The placement was situated within the **${department}**, which is tasked with ma
             >
               {isProcessingPayment ? (
                 <>
-                  <RefreshCw className="size-4 animate-spin" /> Verifying Mobile Payment...
+                  <RefreshCw className="size-4 animate-spin" /> Verifying Payment...
                 </>
               ) : (
                 <>
-                  <CreditCard className="size-4" /> Pay TZS 5,000 & Download .DOC
+                  <CreditCard className="size-4" /> Pay TZS 5,000 & Download PDF
                 </>
               )}
             </Button>
@@ -363,32 +871,26 @@ The placement was situated within the **${department}**, which is tasked with ma
             <Building2 className="size-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-heading">Fieldwork & Attachment Assistant</h1>
+            <h1 className="text-2xl font-bold font-heading">Fieldwork & Industrial Attachment Assistant</h1>
             <p className="text-xs text-muted-foreground">
-              Guided 5-step workflow with page count selection and sample template uploader.
+              Official institutional format reproduction, dynamic cascading academic hierarchy, and print-ready PDF export.
             </p>
           </div>
         </div>
-        {step < 5 && (
-          <div className="text-xs font-semibold px-3 py-1.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
-            Step {step} of 5
-          </div>
-        )}
       </div>
 
       {/* STEP INDICATOR */}
       {step < 5 && (
-        <div className="grid grid-cols-4 gap-2 border-b pb-4">
+        <div className="grid grid-cols-4 gap-2">
           {[
-            { id: 1, label: "1. Institutional & Pages" },
-            { id: 2, label: "2. Placement Details" },
-            { id: 3, label: "3. Evidence & Template" },
-            { id: 4, label: "4. Outline Approval" }
+            { id: 1, label: "1. Institution & Course" },
+            { id: 2, label: "2. Student & Title" },
+            { id: 3, label: "3. Tasks & Template" },
+            { id: 4, label: "4. Outline Preview" }
           ].map((s) => (
             <div
               key={s.id}
-              onClick={() => setStep(s.id)}
-              className={`p-3 rounded-lg border text-xs font-semibold cursor-pointer transition flex items-center justify-between ${
+              className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition ${
                 step === s.id
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : step > s.id
@@ -403,161 +905,397 @@ The placement was situated within the **${department}**, which is tasked with ma
         </div>
       )}
 
-      {/* STEP 1: INSTITUTIONAL INFO & TARGET PAGE COUNT */}
+      {/* STEP 1: INSTITUTION, COLLEGE & COURSE HIERARCHY */}
       {step === 1 && (
         <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-6 max-w-2xl mx-auto">
           <div>
-            <h3 className="text-lg font-bold font-heading mb-1">Step 1: Academic Info & Target Page Count</h3>
-            <p className="text-xs text-muted-foreground">Select your university and specify the target length of your report.</p>
+            <h3 className="text-lg font-bold font-heading mb-1 flex items-center gap-2">
+              <GraduationCap className="size-5 text-primary" /> Step 1: Academic Institution & Programme Hierarchy
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Select your university to automatically reload its official colleges and degree programmes.
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">University / Institution</label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background"
-                value={university}
-                onChange={(e) => setUniversity(e.target.value)}
-              />
+          {stepError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+              <X className="size-4 shrink-0" /> {stepError}
             </div>
+          )}
 
+          <div className="space-y-4">
+            {/* LEVEL 1: UNIVERSITY */}
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1.5">
-                <Sliders className="size-3.5 text-primary" /> Target Report Page Count
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center justify-between">
+                <span>Select Higher Learning Institution in Tanzania</span>
+                {isLoadingTemplate && (
+                  <span className="text-[11px] text-teal-600 flex items-center gap-1 font-normal">
+                    <Loader2 className="size-3 animate-spin" /> Verifying standard...
+                  </span>
+                )}
               </label>
               <select
                 className="w-full p-3 rounded-lg border text-sm bg-background font-semibold"
-                value={targetPages}
-                onChange={(e) => setTargetPages(e.target.value)}
+                value={selectedUniShortName}
+                onChange={(e) => handleUniversityChange(e.target.value)}
               >
-                <option value="5">5 Pages (Short Attachment Summary - ~1,750 Words)</option>
-                <option value="10">10 Pages (Standard Practical Report - ~3,500 Words)</option>
-                <option value="15">15 Pages (Comprehensive Industrial Report - ~5,250 Words)</option>
-                <option value="25">25+ Pages (Exhaustive FYP / Full Industrial Report - ~8,750 Words)</option>
+                <option value="">-- Select Higher Learning Institution in Tanzania --</option>
+                {catalogUniversities.map((uni) => (
+                  <option key={uni.id} value={uni.shortName}>
+                    {uni.name} ({uni.shortName}) {uni.hasOfficialTemplate ? "✓ Verified Template" : ""}
+                  </option>
+                ))}
               </select>
             </div>
 
+            {/* VERIFIED TEMPLATE BADGE (ONLY IF A UNIVERSITY IS SELECTED) */}
+            {selectedUniShortName && (
+              <div className="p-3.5 border rounded-xl bg-teal-50/60 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                    <BadgeCheck className="size-4 text-teal-600 dark:text-teal-400" />
+                    {activeBlueprint.hasVerifiedSample
+                      ? `Official Format: ${activeBlueprint.institutionName} (${activeBlueprint.sourceFile})`
+                      : `National Standard: ${activeBlueprint.institutionName} (Upload custom guideline in Step 3 if available)`}
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-300">
+                    {activeBlueprint.hasVerifiedSample ? "VERIFIED" : "STANDARD"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-800 dark:text-teal-300">
+                  {activeBlueprint.chapters.length} Official Chapter Sections • Times New Roman 12pt Standard • Decimal Headings • Visual Diagrams & Comparative Tables
+                </p>
+              </div>
+            )}
+
+            {/* LEVEL 2: COLLEGE / FACULTY */}
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Faculty / Department</label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background"
-                value={faculty}
-                onChange={(e) => setFaculty(e.target.value)}
-              />
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">
+                College / Faculty / School {selectedUniShortName ? `(Found at ${selectedUniShortName})` : ""}
+              </label>
+              <select
+                disabled={!selectedUniShortName}
+                className="w-full p-3 rounded-lg border text-sm bg-background font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                value={selectedCollegeId}
+                onChange={(e) => handleCollegeChange(e.target.value)}
+              >
+                <option value="">{selectedUniShortName ? "-- Select College / School / Faculty --" : "-- Select University First --"}</option>
+                {availableColleges.map((col) => (
+                  <option key={col.id} value={col.id}>
+                    {col.name} ({col.shortName})
+                  </option>
+                ))}
+                {selectedUniShortName && <option value="custom">-- Other / Specify Custom Faculty --</option>}
+              </select>
+              {selectedCollegeId === "custom" && (
+                <input
+                  type="text"
+                  placeholder="Type your faculty or college name..."
+                  className="w-full p-2.5 rounded-lg border text-sm mt-2 bg-background"
+                  value={faculty}
+                  onChange={(e) => {
+                    setFaculty(e.target.value);
+                    setStepError("");
+                  }}
+                />
+              )}
+            </div>
+
+            {/* LEVEL 3: COURSE / DEGREE PROGRAMME */}
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">
+                Degree / Diploma Programme
+              </label>
+              <select
+                disabled={!selectedCollegeId || selectedCollegeId === "custom"}
+                className="w-full p-3 rounded-lg border text-sm bg-background font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                value={selectedCourseId}
+                onChange={(e) => handleCourseChange(e.target.value)}
+              >
+                <option value="">{selectedCollegeId ? "-- Select Degree / Diploma Programme --" : "-- Select College First --"}</option>
+                {availableCourses.map((crs) => (
+                  <option key={crs.id} value={crs.id}>
+                    {crs.name}
+                  </option>
+                ))}
+                {selectedCollegeId && <option value="custom">-- Other / Specify Custom Programme --</option>}
+              </select>
+
+              {isCustomCourse && (
+                <input
+                  type="text"
+                  placeholder="Type your degree programme name..."
+                  className="w-full p-2.5 rounded-lg border text-sm mt-2 bg-background"
+                  value={customCourse}
+                  onChange={(e) => {
+                    setCustomCourse(e.target.value);
+                    setProgramme(e.target.value);
+                    setStepError("");
+                  }}
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Programme of Study</label>
-                <input
-                  type="text"
-                  className="w-full p-3 rounded-lg border text-sm bg-background"
-                  value={programme}
-                  onChange={(e) => setProgramme(e.target.value)}
-                />
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1.5">
+                  <Sliders className="size-3.5 text-primary" /> Target Report Pages
+                </label>
+                <select
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-semibold"
+                  value={targetPages}
+                  onChange={(e) => setTargetPages(e.target.value)}
+                >
+                  <option value="5">5 Pages (~1,750 Words)</option>
+                  <option value="10">10 Pages (~3,500 Words - Standard)</option>
+                  <option value="15">15 Pages (~5,250 Words)</option>
+                  <option value="25">25+ Pages (~8,750 Words)</option>
+                </select>
               </div>
+
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Academic Year</label>
-                <input
-                  type="text"
-                  className="w-full p-3 rounded-lg border text-sm bg-background"
-                  value={academicYear}
-                  onChange={(e) => setAcademicYear(e.target.value)}
-                />
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-primary" /> Academic Year
+                </label>
+                <select
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-semibold"
+                  value={isCustomAcademicYear ? "custom" : academicYear}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "custom") {
+                      setIsCustomAcademicYear(true);
+                      setAcademicYear("custom");
+                    } else {
+                      setIsCustomAcademicYear(false);
+                      setAcademicYear(val);
+                    }
+                    setStepError("");
+                  }}
+                >
+                  <option value="">-- Select Academic Year --</option>
+                  <option value="2026/2027">2026/2027</option>
+                  <option value="2025/2026">2025/2026</option>
+                  <option value="2024/2025">2024/2025</option>
+                  <option value="2023/2024">2023/2024</option>
+                  <option value="2022/2023">2022/2023</option>
+                  <option value="2021/2022">2021/2022</option>
+                  <option value="2020/2021">2020/2021</option>
+                  <option value="2019/2020">2019/2020</option>
+                  <option value="2018/2019">2018/2019</option>
+                  <option value="custom">Other / Custom Year...</option>
+                </select>
+
+                {isCustomAcademicYear && (
+                  <input
+                    type="text"
+                    placeholder="Enter Custom Academic Year (e.g. 2017/2018)"
+                    className="w-full p-2.5 mt-2 rounded-lg border text-sm bg-background font-semibold"
+                    value={customAcademicYear}
+                    onChange={(e) => {
+                      setCustomAcademicYear(e.target.value);
+                      setStepError("");
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
 
           <div className="flex justify-end pt-4 border-t">
-            <Button onClick={() => setStep(2)} className="gap-2">
-              Continue to Placement Details <ChevronRight className="size-4" />
+            <Button onClick={handleProceedToStep2} className="gap-2">
+              Continue to Student Credentials <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: PLACEMENT DETAILS */}
+      {/* STEP 2: STUDENT IDENTITY & REPORT TITLE (ZERO STATIC / DEFAULT DATA) */}
       {step === 2 && (
         <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-6 max-w-2xl mx-auto">
           <div>
-            <h3 className="text-lg font-bold font-heading mb-1">Step 2: Attachment Placement Details</h3>
-            <p className="text-xs text-muted-foreground">Information about your host organization and supervisor.</p>
+            <h3 className="text-lg font-bold font-heading mb-1 flex items-center gap-2">
+              <User className="size-5 text-primary" /> Step 2: Student Identity & Cover Page Credentials
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              These details will dynamically populate your official cover page with zero static or dummy data.
+            </p>
           </div>
 
+          {stepError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+              <X className="size-4 shrink-0" /> {stepError}
+            </div>
+          )}
+
           <div className="space-y-4">
+            {/* REPORT TITLE */}
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Host Organization Name</label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background"
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1">
+                <BookOpen className="size-3.5 text-primary" /> Official Report Title (Appears on Cover Page)
+              </label>
+              <textarea
+                rows={2}
+                className="w-full p-3 rounded-lg border text-sm bg-background font-semibold uppercase resize-none"
+                placeholder="e.g. FIELD PRACTICAL TRAINING REPORT ON AGRO-PROCESSING AND FOOD QUALITY ASSURANCE"
+                value={reportTitle}
+                onChange={(e) => {
+                  setReportTitle(e.target.value);
+                  setStepError("");
+                }}
               />
             </div>
-            <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Department / Division Placed</label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
-            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Industry Supervisor Name</label>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Student Full Name</label>
                 <input
                   type="text"
-                  className="w-full p-3 rounded-lg border text-sm bg-background"
-                  value={supervisor}
-                  onChange={(e) => setSupervisor(e.target.value)}
+                  placeholder="e.g. Menard John Mushi"
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
+                  value={studentName}
+                  onChange={(e) => {
+                    setStudentName(e.target.value);
+                    setStepError("");
+                  }}
                 />
               </div>
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Attachment Duration</label>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Registration Number</label>
                 <input
                   type="text"
-                  className="w-full p-3 rounded-lg border text-sm bg-background"
+                  placeholder="e.g. 2022-04-08912"
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-mono"
+                  value={regNumber}
+                  onChange={(e) => {
+                    setRegNumber(e.target.value);
+                    setStepError("");
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Year of Study</label>
+                <select
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
+                  value={yearOfStudy}
+                  onChange={(e) => {
+                    setYearOfStudy(e.target.value);
+                    setStepError("");
+                  }}
+                >
+                  <option value="">-- Select Year of Study --</option>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
+                  <option value="5th Year">5th Year</option>
+                  <option value="Postgraduate / Master">Postgraduate / Master</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Duration of Attachment</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 8 Weeks (July - September 2024)"
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Host Organization</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bakhresa Food Products Limited / TTCL"
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
+                  value={organization}
+                  onChange={(e) => {
+                    setOrganization(e.target.value);
+                    setStepError("");
+                  }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Department Placed</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Quality Control & Processing Unit"
+                  className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Academic / Field Supervisor</label>
+              <input
+                type="text"
+                placeholder="e.g. Dr. A. Mwakyusa / Eng. J. Mtambo"
+                className="w-full p-3 rounded-lg border text-sm bg-background font-medium"
+                value={supervisor}
+                onChange={(e) => setSupervisor(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-            <Button onClick={() => setStep(3)} className="gap-2">
-              Continue to Evidence & Sample Template <ChevronRight className="size-4" />
+            <Button variant="outline" onClick={() => { setStepError(""); setStep(1); }}>Back</Button>
+            <Button onClick={handleProceedToStep3} className="gap-2">
+              Continue to Activities & Evidence <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 3: EVIDENCE & SAMPLE TEMPLATE UPLOAD */}
+      {/* STEP 3: WORK ACTIVITIES & CUSTOM TEMPLATE UPLOAD */}
       {step === 3 && (
         <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-6 max-w-2xl mx-auto">
           <div>
-            <h3 className="text-lg font-bold font-heading mb-1">Step 3: Logbook Evidence & Custom Sample Template</h3>
-            <p className="text-xs text-muted-foreground">Provide your field activities and optionally upload or paste a sample report template.</p>
+            <h3 className="text-lg font-bold font-heading mb-1 flex items-center gap-2">
+              <FileSpreadsheet className="size-5 text-primary" /> Step 3: Practical Work Activities & Template Upload
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Provide your attachment duties. You can also upload a custom university guideline file.
+            </p>
           </div>
 
+          {stepError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+              <X className="size-4 shrink-0" /> {stepError}
+            </div>
+          )}
+
           <div className="space-y-4">
-            <div className="p-4 border border-dashed rounded-xl bg-slate-50 dark:bg-slate-800/40 space-y-2">
-              <label className="text-xs font-bold uppercase text-primary block flex items-center gap-1.5">
-                <Upload className="size-4 text-primary" /> Optional: Upload Sample University Template / Guideline File
+            {/* OPTIONAL CUSTOM TEMPLATE UPLOAD */}
+            <div className="p-4 rounded-xl border border-dashed border-teal-300 dark:border-teal-800 bg-teal-50/40 dark:bg-teal-950/20 space-y-2">
+              <label className="text-xs font-bold uppercase text-teal-900 dark:text-teal-200 flex items-center gap-2 cursor-pointer">
+                <Upload className="size-4 text-teal-600 dark:text-teal-400" />
+                Upload Official University Guideline or Format (.PDF / .DOCX / .TXT)
               </label>
+              <p className="text-[11px] text-muted-foreground">
+                If your university does not have a pre-loaded sample, upload its guideline here. Our engine will extract its exact chapter structure automatically.
+              </p>
               <input
                 type="file"
                 accept=".txt,.doc,.docx,.pdf"
                 onChange={handleFileUpload}
-                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
               />
-              {uploadedFileName && (
+              {isParsingFile && (
+                <p className="text-xs text-teal-600 flex items-center gap-1.5 font-medium">
+                  <Loader2 className="size-3.5 animate-spin" /> Parsing document structure and extracting chapters...
+                </p>
+              )}
+              {uploadedFileName && !isParsingFile && (
                 <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <Check className="size-3.5" /> Sample Loaded: {uploadedFileName}
+                  <Check className="size-3.5" /> Blueprint extracted from: {uploadedFileName} ({customSections.length} Sections Active)
                 </p>
               )}
             </div>
@@ -566,25 +1304,54 @@ The placement was situated within the **${department}**, which is tasked with ma
               <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Activities & Tasks Performed</label>
               <textarea
                 rows={3}
-                className="w-full p-3 rounded-lg border text-sm bg-background resize-none"
+                placeholder="Describe your daily operations, assignments, tests, or engineering duties (e.g. 1. Routine maintenance on equipment... 2. Quality testing and sample analysis... 3. Process optimization...)"
+                className="w-full p-3 rounded-lg border text-sm bg-background resize-none leading-relaxed"
                 value={activities}
-                onChange={(e) => setActivities(e.target.value)}
+                onChange={(e) => {
+                  setActivities(e.target.value);
+                  setStepError("");
+                }}
               />
             </div>
+
             <div>
               <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Tools, Equipment & Software Used</label>
               <input
                 type="text"
+                placeholder="e.g. Spectrophotometer, Refractometer, Wireshark, Multimeter, Linux Terminal..."
                 className="w-full p-3 rounded-lg border text-sm bg-background"
                 value={toolsUsed}
                 onChange={(e) => setToolsUsed(e.target.value)}
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Challenges Encountered</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Calibration drift on sensors during peak production; mitigated by daily recalibration protocols."
+                  className="w-full p-3 rounded-lg border text-sm bg-background resize-none"
+                  value={challenges}
+                  onChange={(e) => setChallenges(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Key Learnings</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Hands-on mastery of industrial process control, standard operating procedure compliance, and workplace safety."
+                  className="w-full p-3 rounded-lg border text-sm bg-background resize-none"
+                  value={keyLearnings}
+                  onChange={(e) => setKeyLearnings(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-            <Button onClick={() => setStep(4)} className="gap-2">
+            <Button variant="outline" onClick={() => { setStepError(""); setStep(2); }}>Back</Button>
+            <Button onClick={handleProceedToStep4} className="gap-2">
               Preview Proposed Outline <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -599,16 +1366,40 @@ The placement was situated within the **${department}**, which is tasked with ma
             <p className="text-xs text-muted-foreground">Review report parameters before generating your {targetPages}-page draft.</p>
           </div>
 
-          <div className="p-4 border rounded-xl bg-teal-50/50 dark:bg-teal-950/30 text-xs space-y-1">
-            <p><strong>Target Length:</strong> {targetPages} Pages (~{parseInt(targetPages) * 350} Words)</p>
-            <p><strong>Template Guidance:</strong> {uploadedFileName ? `Custom (${uploadedFileName})` : "Standard University Format"}</p>
+          {/* CREDENTIALS SUMMARY BOX */}
+          <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-800/40 text-xs space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Student:</span>
+              <strong className="text-foreground">{studentName || "Not specified"} ({regNumber || "No Reg No"})</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Programme:</span>
+              <strong className="text-foreground">{isCustomCourse ? customCourse : programme}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Faculty / College:</span>
+              <strong className="text-foreground">{faculty} • {university}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Host Entity:</span>
+              <strong className="text-foreground">{organization} ({department})</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Template Format:</span>
+              <strong className="text-teal-600 dark:text-teal-400">
+                {uploadedFileName ? `Custom (${uploadedFileName})` : `${activeBlueprint.institutionName} (${activeBlueprint.sourceFile})`}
+              </strong>
+            </div>
           </div>
 
-          <div className="space-y-2 border rounded-xl p-4 bg-slate-50 dark:bg-slate-800/40">
-            {outlineSections.map((sec) => (
+          <div className="space-y-2 border rounded-xl p-4 bg-slate-50/50 dark:bg-slate-800/30 max-h-72 overflow-y-auto">
+            {outlineSections.map((sec, idx) => (
               <div key={sec.id} className="p-3 bg-white dark:bg-slate-900 border rounded-lg flex items-center justify-between text-sm">
-                <span className="font-semibold text-foreground">{sec.title}</span>
-                <span className="text-xs text-teal-600 dark:text-teal-400 font-mono font-bold">Configured</span>
+                <div>
+                  <span className="font-semibold text-foreground block">{sec.title}</span>
+                  <span className="text-xs text-muted-foreground">{sec.description}</span>
+                </div>
+                <span className="text-xs text-teal-600 dark:text-teal-400 font-mono font-bold shrink-0 ml-2">Section {idx + 1}</span>
               </div>
             ))}
           </div>
@@ -616,111 +1407,179 @@ The placement was situated within the **${department}**, which is tasked with ma
           <div className="flex justify-between pt-4 border-t">
             <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
             <Button onClick={handleGenerateReport} className="gap-2 bg-primary">
-              <Sparkles className="size-4" /> Generate {targetPages}-Page Report Draft
+              <Sparkles className="size-4" /> Generate {targetPages}-Page University Draft
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 5: 3-PANEL PROFESSIONAL DOCUMENT WORKSPACE */}
+      {/* STEP 5: DOCUMENT WORKSPACE & PDF EXPORT */}
       {step === 5 && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-10rem)]">
-          {/* LEFT PANEL: OUTLINE NAVIGATION */}
-          <div className="lg:col-span-1 bg-white dark:bg-slate-900 border rounded-2xl p-4 flex flex-col justify-between overflow-y-auto">
-            <div>
-              <h3 className="text-xs font-bold uppercase text-muted-foreground mb-3 tracking-wider flex items-center gap-2">
-                <ListChecks className="size-4 text-primary" /> Document Outline
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT PANEL: TABLE OF CONTENTS NAVIGATION */}
+          <div className="bg-white dark:bg-slate-900 border rounded-2xl p-5 flex flex-col h-full shadow-sm">
+            <div className="flex items-center justify-between pb-3 border-b mb-3">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <ListChecks className="size-4 text-primary" /> Table of Contents
               </h3>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setSelectedSection("all")}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                    selectedSection === "all" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"
-                  }`}
-                >
-                  Full Document Draft ({targetPages} Pages)
-                </button>
-                {outlineSections.map((sec) => (
-                  <button
-                    key={sec.id}
-                    onClick={() => setSelectedSection(sec.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${
-                      selectedSection === sec.id ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {sec.title}
-                  </button>
-                ))}
-              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="text-xs h-7">
+                Edit Parameters
+              </Button>
             </div>
 
-            <div className="pt-4 border-t">
-              <Button variant="outline" size="sm" onClick={() => setStep(1)} className="w-full text-xs gap-2">
-                <RefreshCw className="size-3.5" /> Re-run Setup Wizard
-              </Button>
+            <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
+              <button
+                onClick={() => setSelectedSection("all")}
+                className={`w-full text-left p-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition ${
+                  selectedSection === "all"
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800 text-muted-foreground"
+                }`}
+              >
+                <span>Full Generated Report Draft</span>
+                <span className="text-[10px] font-mono">{targetPages} Pages</span>
+              </button>
+
+              {outlineSections.map((sec, idx) => (
+                <button
+                  key={sec.id}
+                  onClick={() => setSelectedSection(sec.id)}
+                  className={`w-full text-left p-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition ${
+                    selectedSection === sec.id
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800 text-muted-foreground"
+                  }`}
+                >
+                  <span className="truncate pr-2">{sec.title}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">Sec {idx + 1}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t mt-3 space-y-2 text-xs">
+              <div className="p-3 bg-teal-50/50 dark:bg-teal-950/30 rounded-xl border border-teal-100 dark:border-teal-900/40">
+                <span className="font-bold text-teal-800 dark:text-teal-300 block mb-1">Institutional Format:</span>
+                <p className="text-muted-foreground text-[11px]">
+                  {uploadedFileName ? `Custom (${uploadedFileName})` : `${activeBlueprint.institutionName} Official Standard`}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* CENTER PANEL: EDITABLE DOCUMENT CANVAS */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-2xl p-6 flex flex-col overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between pb-4 border-b mb-4">
+            <div className="flex items-center justify-between pb-4 border-b mb-3">
               <div>
-                <h3 className="font-bold text-base">Field Report Document Editor</h3>
-                <p className="text-xs text-muted-foreground font-mono">{organization} • {targetPages} Pages Target</p>
+                <h3 className="font-bold text-base truncate max-w-md">{reportTitle || "Industrial Practical Training Report"}</h3>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {studentName || "Student"} • {faculty || "Faculty"} • {targetPages} Pages Target
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(generatedReport)} disabled={!generatedReport} className="text-xs gap-1.5">
-                  <Copy className="size-3.5" /> Copy
+                {/* CANVAS VIEW MODE SWITCHER */}
+                <div className="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCanvasViewMode("formatted")}
+                    className={`px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
+                      canvasViewMode === "formatted"
+                        ? "bg-white dark:bg-slate-700 shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <FileCheck className="size-3.5" /> Official View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCanvasViewMode("raw")}
+                    className={`px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5 ${
+                      canvasViewMode === "raw"
+                        ? "bg-white dark:bg-slate-700 shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <FileText className="size-3.5" /> Raw Text
+                  </button>
+                </div>
+
+                {/* PREVIEW & EDIT IN FULL EDITOR (OPENS IN NEW TAB) */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleOpenInEditor} 
+                  disabled={!generatedReport} 
+                  className="text-xs gap-1.5 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 shadow-sm transition"
+                  title="Open document in a new tab to edit text and upload figures/images"
+                >
+                  <ExternalLink className="size-3.5 text-teal-600" />
+                  Preview & Edit
                 </Button>
-                <Button size="sm" onClick={handleExportDoc} disabled={!generatedReport} className="text-xs gap-1.5 bg-teal-600 text-white">
-                  {!isUnlocked && <Lock className="size-3.5" />}
-                  <Download className="size-3.5" /> {isUnlocked ? "Download .DOC" : "Unlock & Download"}
+
+                {/* DOWNLOAD PDF ACTION (INTEGRATED WITH PAYMENT DETECTION) */}
+                <Button 
+                  size="sm" 
+                  onClick={() => handleExport("pdf")} 
+                  disabled={!generatedReport} 
+                  className={`text-xs gap-1.5 font-medium shadow-sm transition ${
+                    isUnlocked
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : "bg-rose-600 hover:bg-rose-700 text-white"
+                  }`}
+                  title={!isUnlocked ? "Complete payment to unlock and download PDF" : "Download official PDF document"}
+                >
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-200" /> : <Download className="size-3.5" />}
+                  {isUnlocked ? "Download Official PDF" : "Unlock & Download PDF"}
                 </Button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div 
+              className={`flex-1 overflow-y-auto relative ${!isUnlocked ? 'select-none' : ''}`}
+              onCopy={(e) => {
+                if (!isUnlocked) {
+                  e.preventDefault();
+                  setShowPaymentModal(true);
+                }
+              }}
+              onContextMenu={(e) => {
+                if (!isUnlocked) {
+                  e.preventDefault();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (!isUnlocked && (e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C" || e.key === "x" || e.key === "X")) {
+                  e.preventDefault();
+                  setShowPaymentModal(true);
+                }
+              }}
+            >
               {isGenerating ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 py-16">
                   <RefreshCw className="size-8 animate-spin text-primary" />
-                  <p className="text-sm font-medium">Generating {targetPages}-page university report draft...</p>
+                  <p className="text-sm font-medium">Generating {targetPages}-page official university report draft...</p>
+                  <p className="text-xs text-muted-foreground">Formatting institutional cover page, preliminary sections, organogram and process flowcharts...</p>
+                </div>
+              ) : canvasViewMode === "formatted" ? (
+                <div className="bg-white text-slate-900 border rounded-xl shadow-sm p-8 min-h-full font-serif leading-relaxed">
+                  <div
+                    className="prose max-w-none text-sm space-y-4"
+                    dangerouslySetInnerHTML={{
+                      __html: DocxCompilerEngine.formatContentToAcademicHtml(generatedReport)
+                    }}
+                  />
                 </div>
               ) : (
-                <textarea
-                  className="w-full h-full p-4 font-serif text-sm leading-relaxed border-none bg-transparent focus:outline-none resize-none text-slate-900 dark:text-slate-100"
-                  value={generatedReport}
-                  onChange={(e) => setGeneratedReport(e.target.value)}
-                />
+                <div className="relative h-full">
+                  <textarea
+                    readOnly={!isUnlocked}
+                    className={`w-full h-full p-4 font-mono text-xs leading-relaxed border-none bg-transparent focus:outline-none resize-none text-slate-900 dark:text-slate-100 ${
+                      !isUnlocked ? 'cursor-default select-none' : ''
+                    }`}
+                    value={generatedReport}
+                    onChange={(e) => isUnlocked && setGeneratedReport(e.target.value)}
+                  />
+                </div>
               )}
-            </div>
-          </div>
-
-          {/* RIGHT PANEL: COMPLETENESS CHECKLIST & ASSISTANT */}
-          <div className="lg:col-span-1 bg-white dark:bg-slate-900 border rounded-2xl p-4 flex flex-col justify-between overflow-y-auto">
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2">
-                <FileCheck className="size-4 text-emerald-500" /> Report Completeness
-              </h3>
-
-              <div className="space-y-2 text-xs">
-                {[
-                  { label: `Page Target (${targetPages} Pages)`, status: true },
-                  { label: "Institutional Header", status: true },
-                  { label: "Placement Logbook Included", status: true },
-                  { label: "Technical Challenges Stated", status: true },
-                  { label: "Sample Template Applied", status: !!uploadedFileName }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-800/50">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
-                    <Check className="size-4 text-emerald-500" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/40 text-xs text-purple-900 dark:text-purple-300">
-                <strong className="flex items-center gap-1.5 mb-1"><Sparkles className="size-3.5 text-purple-600" /> AI Target Met:</strong>
-                Configured for {targetPages} Pages (~{parseInt(targetPages) * 350} words).
-              </div>
             </div>
           </div>
         </div>

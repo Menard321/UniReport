@@ -71,11 +71,10 @@ export function BillingInteractive({ currentTierId }: { currentTierId: string })
       {selectedPlan && (
         <TzPaymentGateway 
           planName={selectedPlan.name}
+          planId={selectedPlan.id}
           amount={selectedPlan.priceTZS}
           onSuccess={() => {
             setSelectedPlan(null);
-            alert(`Payment Successful! Your plan will synchronize shortly.`);
-            // Future step: A real API call to upgrade tier
             window.location.reload();
           }}
           onCancel={() => setSelectedPlan(null)}

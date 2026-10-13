@@ -117,9 +117,12 @@ export default function LandingPage() {
                 { step: "03", title: "Intelligent Drafting", desc: "Our AI drafts sections based strictly on your uploaded evidence." },
                 { step: "04", title: "Export Validated Report", desc: "Export perfectly formatted DOCX or print-ready PDF files." }
               ].map((item, i) => (
-                <div key={i} className="relative flex flex-col items-center text-center p-6 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xl mb-6 shadow-md">{item.step}</div>
-                  <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                <div 
+                  key={i} 
+                  className="group relative flex flex-col items-center text-center p-6 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-teal-500/5 hover:border-teal-500/50 hover:bg-white dark:hover:bg-slate-900/90 motion-reduce:hover:transform-none"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xl mb-6 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:bg-teal-600 group-hover:shadow-teal-500/20">{item.step}</div>
+                  <h3 className="text-xl font-bold mb-3 transition-colors duration-200 group-hover:text-primary dark:group-hover:text-teal-400">{item.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
                 </div>
               ))}
@@ -149,7 +152,7 @@ export default function LandingPage() {
               </ul>
             </div>
             
-            <div className="relative rounded-2xl overflow-hidden border border-border shadow-2xl bg-white dark:bg-slate-950 p-6 flex flex-col gap-4">
+            <div className="relative rounded-2xl overflow-hidden border border-border shadow-2xl bg-white dark:bg-slate-950 p-6 flex flex-col gap-4 transition-all duration-300 hover:shadow-teal-500/10 hover:border-teal-500/30">
                {/* Mock UI Preview */}
                <div className="flex border-b border-border pb-4 items-center justify-between">
                  <h4 className="font-semibold flex items-center gap-2"><ScrollText className="size-4 text-teal-600" /> Literature Review</h4>
@@ -171,19 +174,19 @@ export default function LandingPage() {
              <h2 className="text-3xl font-bold font-heading text-center mb-16 text-primary dark:text-white">Supporting the Complete Academic Lifecycle</h2>
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-               <div className="p-8 border border-border rounded-xl hover:shadow-md transition-shadow">
-                 <BookOpenText className="size-10 text-primary mb-6" />
-                 <h3 className="text-xl font-bold mb-3">Undergraduate Projects</h3>
+               <div className="group p-8 border border-border/80 rounded-2xl bg-white dark:bg-slate-900/60 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/50 motion-reduce:hover:transform-none">
+                 <BookOpenText className="size-10 text-primary mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" />
+                 <h3 className="text-xl font-bold mb-3 transition-colors duration-200 group-hover:text-primary dark:group-hover:text-teal-400">Undergraduate Projects</h3>
                  <p className="text-muted-foreground">From initial research proposals to the final bound dissertation, adhering perfectly to your department's format.</p>
                </div>
-               <div className="p-8 border border-border rounded-xl hover:shadow-md transition-shadow">
-                 <Building2 className="size-10 text-teal-600 mb-6" />
-                 <h3 className="text-xl font-bold mb-3">Field & Training Reports</h3>
+               <div className="group p-8 border border-border/80 rounded-2xl bg-white dark:bg-slate-900/60 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-teal-500/5 hover:border-teal-500/50 motion-reduce:hover:transform-none">
+                 <Building2 className="size-10 text-teal-600 mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
+                 <h3 className="text-xl font-bold mb-3 transition-colors duration-200 group-hover:text-teal-600 dark:group-hover:text-teal-400">Field & Training Reports</h3>
                  <p className="text-muted-foreground">Log daily activities effortlessly and compile them into structured internship or industrial training reports.</p>
                </div>
-               <div className="p-8 border border-border rounded-xl hover:shadow-md transition-shadow">
-                 <Library className="size-10 text-[#F59E0B] mb-6" />
-                 <h3 className="text-xl font-bold mb-3">Postgrad Research</h3>
+               <div className="group p-8 border border-border/80 rounded-2xl bg-white dark:bg-slate-900/60 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-amber-500/5 hover:border-amber-500/50 motion-reduce:hover:transform-none">
+                 <Library className="size-10 text-[#F59E0B] mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" />
+                 <h3 className="text-xl font-bold mb-3 transition-colors duration-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">Postgrad Research</h3>
                  <p className="text-muted-foreground">Advanced qualitative and quantitative analysis workspaces designed specifically for Masters and PhD scholars.</p>
                </div>
              </div>

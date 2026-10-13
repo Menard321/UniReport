@@ -86,14 +86,3 @@ export const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
   }
 ];
 
-// Mock for simulating current user state
-export const getCurrentSubscription = () => {
-  return {
-    tier: SUBSCRIPTION_TIERS[0], // Free
-    usage: {
-      projects: 2,
-      aiTokens: 4500,
-      storageMb: 12
-    }
-  };
-};

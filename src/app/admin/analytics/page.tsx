@@ -1,38 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   BarChart3, 
   TrendingUp, 
-  Calendar, 
-  Download, 
   GraduationCap, 
   FileText, 
   Cpu, 
   Users,
-  PieChart,
-  ArrowUpRight
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+interface AnalyticsData {
+  totalStudents: number;
+  totalUsers: number;
+  totalDocs: number;
+  totalAiTokens: number;
+  universityAdoption: { name: string; students: number; share: string }[];
+  reportTypeDistribution: { type: string; count: number; pct: string }[];
+}
+
 export default function AdminAnalyticsPage() {
-  const [timeRange, setTimeRange] = useState("30D");
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const universityAdoption = [
-    { name: "University of Dar es Salaam (UDSM)", students: 1420, share: "34%", color: "bg-teal-500" },
-    { name: "University of Dodoma (UDOM)", students: 980, share: "24%", color: "bg-indigo-500" },
-    { name: "Sokoine Univ. of Agriculture (SUA)", students: 640, share: "15%", color: "bg-emerald-500" },
-    { name: "Dar es Salaam Inst. of Tech (DIT)", students: 490, share: "12%", color: "bg-purple-500" },
-    { name: "Ardhi University (ARDHI)", students: 310, share: "8%", color: "bg-amber-500" },
-    { name: "Other Higher Learning Institutions", students: 280, share: "7%", color: "bg-slate-500" },
-  ];
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/analytics");
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const reportTypeDistribution = [
-    { type: "Final Year Project (FYP)", count: 2140, pct: "52%" },
-    { type: "Industrial Practical Training (IPT/PT)", count: 1280, pct: "31%" },
-    { type: "Postgraduate Masters Dissertation", count: 490, pct: "12%" },
-    { type: "PhD Research & Thesis", count: 210, pct: "5%" },
-  ];
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const totalTokensStr = data?.totalAiTokens 
+    ? (data.totalAiTokens > 1000 ? `${(data.totalAiTokens / 1000).toFixed(1)}k` : data.totalAiTokens.toString())
+    : "0";
 
   return (
     <div className="space-y-6">
@@ -44,134 +59,159 @@ export default function AdminAnalyticsPage() {
             Analytics & Institutional Intelligence
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Holistic macro metrics, university adoption distribution, and student completion velocities.
+            Holistic macro metrics, university adoption distribution, and student completion velocities from PostgreSQL.
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
-            {["7D", "30D", "90D", "ACADEMIC_YEAR"].map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 rounded font-mono transition-colors ${
-                  timeRange === range
-                    ? "bg-teal-500 text-slate-950 font-bold"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
-
           <Button
             variant="outline"
             size="sm"
-            onClick={() => alert("Aggregated Analytics report downloaded.")}
+            onClick={fetchAnalytics}
             className="text-xs bg-slate-900 border-slate-800 text-slate-300 hover:text-white"
           >
-            <Download className="size-3.5 mr-1.5" /> Export PDF
+            <RefreshCw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Telemetry
           </Button>
         </div>
       </div>
 
-      {/* KPI Highlights */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-medium">New Student Onboardings</span>
-            <span className="text-xs font-mono text-emerald-400 flex items-center">+18% <ArrowUpRight className="size-3" /></span>
-          </div>
-          <h3 className="text-2xl font-bold text-white tracking-tight">4,120</h3>
-          <p className="text-[11px] text-slate-500 mt-1">Across 11 Tanzanian universities</p>
+      {loading ? (
+        <div className="p-20 text-center text-slate-400">
+          <Loader2 className="size-8 text-teal-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm">Aggregating live university telemetry...</p>
         </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-medium">Draft Completion Rate</span>
-            <span className="text-xs font-mono text-emerald-400 flex items-center">88.4%</span>
-          </div>
-          <h3 className="text-2xl font-bold text-white tracking-tight">3,640</h3>
-          <p className="text-[11px] text-slate-500 mt-1">Full 6-chapter documents</p>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-medium">Avg. Drafting Duration</span>
-            <span className="text-xs font-mono text-teal-400 flex items-center">-42% time</span>
-          </div>
-          <h3 className="text-2xl font-bold text-white tracking-tight">1.8 hrs</h3>
-          <p className="text-[11px] text-slate-500 mt-1">From outline to final export</p>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-medium">Verified Citation Accuracy</span>
-            <span className="text-xs font-mono text-emerald-400 flex items-center">97.8%</span>
-          </div>
-          <h3 className="text-2xl font-bold text-white tracking-tight">28,490</h3>
-          <p className="text-[11px] text-slate-500 mt-1">Validated Crossref DOIs</p>
-        </div>
-      </div>
-
-      {/* University Adoption & Report Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* University Share Breakdown */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <GraduationCap className="size-4 text-teal-400" /> Institution Adoption Distribution
-            </h3>
-            <span className="text-xs font-mono text-slate-400">Total: 4,120</span>
-          </div>
-
-          <div className="space-y-3">
-            {universityAdoption.map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-300 font-medium">{item.name}</span>
-                  <span className="font-mono text-slate-400">{item.students.toLocaleString()} scholars ({item.share})</span>
-                </div>
-                <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${item.color} rounded-full`} 
-                    style={{ width: item.share }}
-                  />
+      ) : (
+        <>
+          {/* Top Level Macro KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Enrolled Students</span>
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400">
+                  <Users className="size-4" />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-heading">{data?.totalStudents || 0}</span>
+                <span className="text-[11px] text-teal-400 block mt-1">Active Scholars</span>
+              </div>
+            </div>
 
-        {/* Report Type Distribution */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <FileText className="size-4 text-teal-400" /> Academic Report Formats Drafted
-            </h3>
-            <span className="text-xs font-mono text-slate-400">Total: 4,120</span>
-          </div>
-
-          <div className="space-y-3">
-            {reportTypeDistribution.map((r) => (
-              <div key={r.type} className="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold text-slate-200 block">{r.type}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">{r.count.toLocaleString()} completed documents</span>
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Documents Saved</span>
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                  <FileText className="size-4" />
                 </div>
-                <span className="text-xs font-mono font-bold text-teal-400 bg-teal-500/10 px-2 py-1 rounded border border-teal-500/20">
-                  {r.pct}
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-heading">{data?.totalDocs || 0}</span>
+                <span className="text-[11px] text-emerald-400 block mt-1">Saved drafts & projects</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Tokens Generated</span>
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                  <Cpu className="size-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-heading">{totalTokensStr}</span>
+                <span className="text-[11px] text-indigo-400 block mt-1">Gemini AI tokens</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Total System Accounts</span>
+                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                  <TrendingUp className="size-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-heading">{data?.totalUsers || 0}</span>
+                <span className="text-[11px] text-purple-400 block mt-1">Total user records</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Distribution Split */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* University Adoption */}
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="size-4 text-teal-400" />
+                  <h3 className="font-bold text-sm text-white">University Adoption Distribution</h3>
+                </div>
+                <span className="text-[10px] font-mono text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded">
+                  Live Counts
                 </span>
               </div>
-            ))}
-          </div>
 
-          <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 text-xs text-slate-400">
-            <span className="text-slate-200 font-semibold block mb-0.5">Academic Cycle Insight:</span>
-            Final Year Projects peak in June&ndash;July across UDSM & UDOM, whereas Field Training (IPT) peaks in September&ndash;October.
+              {!data?.universityAdoption || data.universityAdoption.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <p className="text-xs">No university affiliations recorded on accounts yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {data.universityAdoption.map((uni) => (
+                    <div key={uni.name} className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-300 font-medium">{uni.name}</span>
+                        <span className="font-mono text-slate-400">{uni.students} scholars ({uni.share})</span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                        <div 
+                          className="bg-teal-500 h-2 rounded-full transition-all duration-500" 
+                          style={{ width: uni.share }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Document Types */}
+            <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <FileText className="size-4 text-emerald-400" />
+                  <h3 className="font-bold text-sm text-white">Report Format Categories</h3>
+                </div>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                  Documents Created
+                </span>
+              </div>
+
+              {!data?.reportTypeDistribution || data.reportTypeDistribution.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <p className="text-xs">No document types recorded yet. Created reports will be charted here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {data.reportTypeDistribution.map((t) => (
+                    <div key={t.type} className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-300 font-medium">{t.type}</span>
+                        <span className="font-mono text-slate-400">{t.count} drafts ({t.pct})</span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                        <div 
+                          className="bg-emerald-500 h-2 rounded-full transition-all duration-500" 
+                          style={{ width: t.pct }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

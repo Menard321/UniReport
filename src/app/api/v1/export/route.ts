@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { documentId, options } = body;
+    const { documentId, format = "doc", options } = body;
 
     // Fetch user subscription tier & document status
     const userSubscription = await db.subscription.findUnique({
@@ -25,16 +25,16 @@ export async function POST(req: Request) {
       });
     }
 
-    // Check backend payment entitlement (Requirement 12)
+    // Check backend payment entitlement
     // PRO or INSTITUTIONAL tier users or documents marked isPaid === true are authorized
     const isUserPro = userSubscription?.tier === "PRO" || userSubscription?.tier === "INSTITUTIONAL";
-    const isDocumentPaid = documentRecord ? documentRecord.isPaid : false;
+    const isDocumentPaid = documentRecord ? Boolean((documentRecord as any).isPaid) : false;
     const isAuthorized = isUserPro || isDocumentPaid;
 
     if (!isAuthorized) {
       return NextResponse.json(
         {
-          error: "Payment Required: Upgrade to Pro or unlock this report to download the full editable .DOC file.",
+          error: "Payment Required: Complete mobile payment (TZS 5,000) or upgrade to PRO to download this document.",
           requiresPayment: true,
           priceTzs: 5000,
           documentId: documentRecord?.id || null
@@ -43,22 +43,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Compile Microsoft Word Document payload for authorized user
-    const wordContentHtml = DocxCompilerEngine.compileToWordHtml({
+    const exportOptions = {
       title: options?.title || documentRecord?.title || "Academic Report",
       institution: options?.institution || "University of Dar es Salaam (UDSM)",
       faculty: options?.faculty || "College of Information and Communication Technologies",
-      programme: options?.programme || "BSc in Computer Science",
-      supervisorName: options?.supervisorName || "Eng. J. Mkasanga",
+      programme: options?.programme || "Degree Programme",
+      studentName: options?.studentName || "",
+      registrationNumber: options?.registrationNumber || "",
+      yearOfStudy: options?.yearOfStudy || "",
+      organization: options?.organization || "",
+      supervisorName: options?.supervisorName || "Academic Supervisor",
       academicYear: options?.academicYear || "2025/2026",
       content: options?.content || documentRecord?.content || "# ACADEMIC REPORT DRAFT"
-    });
+    };
 
+    if (format !== "doc") {
+      const pdfHtml = DocxCompilerEngine.compileToPdfHtml(exportOptions);
+      return NextResponse.json({
+        success: true,
+        isPaidAuthorized: true,
+        format: "pdf",
+        pdfHtml,
+        filename: `${exportOptions.title.replace(/\s+/g, "_")}.pdf`
+      });
+    }
+
+    // Fallback if explicitly requested (.doc)
+    const wordContentHtml = DocxCompilerEngine.compileToWordHtml(exportOptions);
     return NextResponse.json({
       success: true,
       isPaidAuthorized: true,
+      format: "doc",
       htmlDocument: wordContentHtml,
-      filename: `${(options?.title || "Academic_Report").replace(/\s+/g, "_")}.doc`
+      filename: `${exportOptions.title.replace(/\s+/g, "_")}.doc`
     });
 
   } catch (error) {

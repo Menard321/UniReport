@@ -1,49 +1,42 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Check, Info, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Bell, Check, Info, AlertTriangle, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    title: "Subscription Limit Approaching",
-    message: "You have used 4 out of 5 free projects. Upgrade to Research Pro.",
-    type: "warning",
-    time: "2 hours ago",
-    read: false,
-    icon: AlertTriangle,
-    color: "text-amber-500",
-    bg: "bg-amber-100 dark:bg-amber-900/30",
-  },
-  {
-    id: 2,
-    title: "Literature Synthesis Complete",
-    message: "Your literature review on 'Online Learning' has successfully generated.",
-    type: "success",
-    time: "5 hours ago",
-    read: false,
-    icon: Check,
-    color: "text-emerald-500",
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
-  },
-  {
-    id: 3,
-    title: "New Platform Update",
-    message: "We've added 5 new Reference formats. Check them out!",
-    type: "info",
-    time: "1 day ago",
-    read: true,
-    icon: Info,
-    color: "text-blue-500",
-    bg: "bg-blue-100 dark:bg-blue-900/30",
-  },
-];
+interface LiveNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+  read: boolean;
+  createdAt: string;
+}
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<LiveNotification[]>([]);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/notifications");
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -57,8 +50,43 @@ export function NotificationCenter() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markSingleRead = async (id: string) => {
+    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const getIconConfig = (type: string) => {
+    switch (type) {
+      case "SUCCESS":
+        return { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-100 dark:bg-emerald-950/40" };
+      case "WARNING":
+        return { icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-100 dark:bg-amber-950/40" };
+      case "ERROR":
+        return { icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-100 dark:bg-rose-950/40" };
+      default:
+        return { icon: Info, color: "text-teal-500", bg: "bg-teal-100 dark:bg-teal-950/40" };
+    }
   };
 
   return (
@@ -67,21 +95,24 @@ export function NotificationCenter() {
         variant="ghost" 
         size="icon" 
         className="relative text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) fetchNotifications();
+        }}
       >
         <Bell className="size-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-900"></span>
+          <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900 animate-pulse"></span>
         )}
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-slate-950 border rounded-xl shadow-xl z-50 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
-            <h3 className="font-semibold flex items-center gap-2">
-              Notifications
+        <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              Platform Alerts
               {unreadCount > 0 && (
-                <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-bold">
+                <span className="bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs px-2 py-0.5 rounded-full font-bold border border-teal-500/20">
                   {unreadCount} New
                 </span>
               )}
@@ -89,7 +120,7 @@ export function NotificationCenter() {
             {unreadCount > 0 && (
               <button 
                 onClick={markAllRead}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                className="text-xs text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 transition-colors flex items-center gap-1 font-medium"
               >
                 <Check className="size-3" /> Mark all read
               </button>
@@ -99,48 +130,44 @@ export function NotificationCenter() {
           <div className="max-h-[60vh] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-8 text-center flex flex-col items-center text-muted-foreground">
-                <ShieldCheck className="size-10 opacity-20 mb-3" />
-                <p>You're all caught up!</p>
+                <ShieldCheck className="size-10 opacity-25 mb-3 text-teal-500" />
+                <p className="text-sm font-medium">You're all caught up!</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">No system alerts or generation notifications.</p>
               </div>
             ) : (
-              <div className="flex flex-col">
-                {notifications.map((notif) => (
-                  <div 
-                    key={notif.id} 
-                    className={`p-4 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors cursor-pointer flex gap-4 ${!notif.read ? 'bg-primary/5 dark:bg-primary/5' : ''}`}
-                    onClick={() => {
-                      setNotifications(notifications.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                    }}
-                  >
-                    <div className={`shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${notif.bg} ${notif.color}`}>
-                      <notif.icon className="size-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notif.read ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'}`}>
-                        {notif.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                        {notif.message}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/60 mt-2 font-medium uppercase tracking-wider">
-                        {notif.time}
-                      </p>
-                    </div>
-                    {!notif.read && (
-                      <div className="shrink-0 pt-2">
-                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+              <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                {notifications.map((notif) => {
+                  const { icon: Icon, color, bg } = getIconConfig(notif.type);
+                  return (
+                    <div 
+                      key={notif.id} 
+                      className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer flex gap-3.5 ${!notif.read ? 'bg-teal-500/5' : ''}`}
+                      onClick={() => markSingleRead(notif.id)}
+                    >
+                      <div className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${bg} ${color}`}>
+                        <Icon className="size-4" />
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs ${!notif.read ? 'font-bold text-foreground' : 'font-medium text-foreground/80'}`}>
+                          {notif.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                          {notif.message}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">
+                          {new Date(notif.createdAt).toLocaleDateString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {!notif.read && (
+                        <div className="shrink-0 pt-1.5">
+                          <div className="h-2 w-2 rounded-full bg-teal-500"></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </div>
-          
-          <div className="p-3 border-t bg-slate-50 dark:bg-slate-900/50 text-center">
-            <button className="text-sm font-medium text-primary hover:underline">
-              View All Notifications
-            </button>
           </div>
         </div>
       )}

@@ -1,359 +1,334 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   RefreshCw, 
   Search, 
-  Filter, 
   CheckCircle2, 
   AlertCircle, 
   Clock, 
   FileText, 
   RotateCw, 
-  XCircle, 
-  ChevronRight, 
-  Eye, 
   X,
-  PlayCircle
+  Loader2,
+  Cpu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface ReportJob {
+interface LiveReportJob {
   id: string;
-  reportTitle: string;
-  studentEmail: string;
+  title: string;
+  reportType: string;
   institution: string;
-  jobType: "FULL_DRAFT" | "CHAPTER_GENERATION" | "EXPORT_PDF" | "EXPORT_DOCX";
-  status: "COMPLETED" | "PROCESSING" | "QUEUED" | "FAILED";
-  duration: string;
-  attempts: number;
+  status: string;
+  targetPages: number;
+  totalWordTarget: number;
+  citationStyle: string;
   createdAt: string;
-  errorReason?: string;
-  service: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    university: string | null;
+  };
+  sections: {
+    id: string;
+    chapterNumber: number;
+    title: string;
+    status: string;
+    qaScore: number | null;
+  }[];
 }
 
 export default function AdminReportJobsPage() {
-  const [jobs, setJobs] = useState<ReportJob[]>([
-    {
-      id: "job_8921",
-      reportTitle: "IoT-Based Smart Soil Moisture Monitoring for Morogoro Farms",
-      studentEmail: "f.othman@sua.ac.tz",
-      institution: "SUA",
-      jobType: "FULL_DRAFT",
-      status: "COMPLETED",
-      duration: "18.4s",
-      attempts: 1,
-      createdAt: "10 mins ago",
-      service: "Gemini 2.0 Flash / Worker-01"
-    },
-    {
-      id: "job_8922",
-      reportTitle: "Automated Traffic Violation Detection Using Computer Vision in DSM",
-      studentEmail: "a.kiboko@dit.ac.tz",
-      institution: "DIT",
-      jobType: "EXPORT_PDF",
-      status: "COMPLETED",
-      duration: "4.2s",
-      attempts: 1,
-      createdAt: "22 mins ago",
-      service: "Puppeteer Export Node"
-    },
-    {
-      id: "job_8923",
-      reportTitle: "Evaluation of FinTech Micro-Loans on Informal Traders in Kariakoo",
-      studentEmail: "bmushi@cbe.ac.tz",
-      institution: "CBE",
-      jobType: "CHAPTER_GENERATION",
-      status: "FAILED",
-      duration: "12.8s",
-      attempts: 2,
-      createdAt: "35 mins ago",
-      errorReason: "Upstream token limit threshold reached on Chapter 4 raw dataset table.",
-      service: "Worker-02"
-    },
-    {
-      id: "job_8924",
-      reportTitle: "Solar Micro-Grid Load Forecasting in Rural Dodoma",
-      studentEmail: "m.chacha@udom.ac.tz",
-      institution: "UDOM",
-      jobType: "FULL_DRAFT",
-      status: "PROCESSING",
-      duration: "9.1s",
-      attempts: 1,
-      createdAt: "Just now",
-      service: "Worker-01"
-    },
-    {
-      id: "job_8925",
-      reportTitle: "Blockchain-Enabled Land Titling Framework for Dar es Salaam",
-      studentEmail: "j.lyimo@ardhi.ac.tz",
-      institution: "ARDHI",
-      jobType: "EXPORT_DOCX",
-      status: "QUEUED",
-      duration: "-",
-      attempts: 0,
-      createdAt: "1 min ago",
-      service: "Queue Manager"
-    }
-  ]);
-
+  const [jobs, setJobs] = useState<LiveReportJob[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedJob, setSelectedJob] = useState<ReportJob | null>(null);
-  const [feedback, setFeedback] = useState("");
+  const [selectedJob, setSelectedJob] = useState<LiveReportJob | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const filtered = jobs.filter((j) => {
-    const matchesSearch = 
-      j.reportTitle.toLowerCase().includes(search.toLowerCase()) ||
-      j.studentEmail.toLowerCase().includes(search.toLowerCase()) ||
-      j.id.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "ALL" || j.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (statusFilter !== "ALL") params.append("status", statusFilter);
+
+      const res = await fetch(`/api/admin/report-jobs?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(data.jobs || []);
+      }
+    } catch (err) {
+      console.error("Failed to load jobs", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, [statusFilter]);
+
+  const handleUpdateStatus = async (jobId: string, newStatus: string) => {
+    try {
+      setActionLoading(true);
+      const res = await fetch("/api/admin/report-jobs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, status: newStatus })
+      });
+      if (res.ok) {
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+        if (selectedJob && selectedJob.id === jobId) {
+          setSelectedJob({ ...selectedJob, status: newStatus });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredJobs = jobs.filter(j => {
+    const term = search.toLowerCase();
+    return (
+      j.title.toLowerCase().includes(term) ||
+      (j.user?.name || "").toLowerCase().includes(term) ||
+      j.user?.email.toLowerCase().includes(term) ||
+      j.institution.toLowerCase().includes(term)
+    );
   });
 
-  const retryJob = (id: string) => {
-    setJobs(jobs.map(j => {
-      if (j.id === id) {
-        return { ...j, status: "PROCESSING", attempts: j.attempts + 1, errorReason: undefined };
-      }
-      return j;
-    }));
-    setFeedback(`Job ${id} queued for immediate idempotent retry.`);
-    setTimeout(() => {
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, status: "COMPLETED", duration: "14.2s" } : j));
-    }, 2500);
-    setTimeout(() => setFeedback(""), 4000);
-  };
-
-  const cancelJob = (id: string) => {
-    setJobs(jobs.map(j => j.id === id ? { ...j, status: "FAILED", errorReason: "Cancelled by Administrator" } : j));
-    setFeedback(`Job ${id} was cancelled.`);
-    setTimeout(() => setFeedback(""), 3000);
-  };
+  const completedCount = jobs.filter(j => j.status === "COMPLETED").length;
+  const processingCount = jobs.filter(j => j.status === "GENERATING" || j.status === "PLANNING" || j.status === "VERIFYING").length;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold font-heading text-white tracking-tight flex items-center gap-2">
-            <RefreshCw className="size-6 text-teal-400" />
-            Report Generation & Document Export Jobs
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Real-time monitoring of asynchronous drafting queues, export workers, and retry diagnostics.
+          <h1 className="text-2xl font-bold font-heading text-white tracking-tight">Report Generation Jobs & Diagnostics</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Real-time tracking of AI chapter drafting, synthesis queues, and export workers in PostgreSQL.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setFeedback("Refreshed job queue telemetry.");
-              setTimeout(() => setFeedback(""), 2500);
-            }}
-            className="text-xs bg-slate-900 border-slate-800 text-slate-300 hover:text-white"
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={fetchJobs} 
+            variant="outline" 
+            size="sm" 
+            className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
           >
-            <RotateCw className="size-3.5 mr-1.5" /> Refresh Queue
+            <RefreshCw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Pipeline
           </Button>
         </div>
       </div>
 
-      {feedback && (
-        <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg text-xs text-teal-300 flex items-center gap-2">
-          <CheckCircle2 className="size-4 shrink-0" />
-          {feedback}
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Total Generation Plans</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-white font-heading">{jobs.length}</span>
+            <span className="text-xs font-mono text-teal-400">Database Records</span>
+          </div>
         </div>
-      )}
 
-      {/* Filter and Search Bar */}
-      <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-80">
-          <Search className="size-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search job ID, topic title, scholar email..."
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Active / Processing</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-teal-400 font-heading">{processingCount}</span>
+            <span className="text-xs font-mono text-teal-400/80">LLM Workers</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Successfully Completed</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-emerald-400 font-heading">{completedCount}</span>
+            <span className="text-xs font-mono text-emerald-400/80">Delivered</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/70 p-4 border border-slate-800/80 rounded-xl">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-2.5 size-4 text-slate-500" />
+          <input 
+            type="text" 
+            placeholder="Search jobs by report title or scholar..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition-colors"
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Filter className="size-3.5 text-slate-500" />
-          <span>Job Status:</span>
-          <select
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8 px-2 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-teal-500"
           >
             <option value="ALL">All Statuses</option>
+            <option value="PLANNING">Planning</option>
+            <option value="GENERATING">Generating</option>
+            <option value="VERIFYING">Verifying</option>
             <option value="COMPLETED">Completed</option>
-            <option value="PROCESSING">Processing</option>
-            <option value="QUEUED">Queued</option>
-            <option value="FAILED">Failed</option>
           </select>
         </div>
       </div>
 
       {/* Jobs Table */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800 font-mono">
-              <tr>
-                <th className="px-5 py-3.5">Job ID & Task Type</th>
-                <th className="px-5 py-3.5">Academic Project Title</th>
-                <th className="px-5 py-3.5">Institution</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Duration</th>
-                <th className="px-5 py-3.5">Attempts</th>
-                <th className="px-5 py-3.5 text-right">Operations</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.length === 0 ? (
+          {loading ? (
+            <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="size-8 text-teal-400 animate-spin mb-3" />
+              <p className="text-sm">Querying active report jobs...</p>
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <div className="p-16 text-center flex flex-col items-center justify-center text-slate-400">
+              <Cpu className="size-12 text-slate-600 mb-3" />
+              <p className="text-base font-semibold text-slate-300">No report jobs found</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                When students trigger AI drafts, thesis syntheses, or exports, jobs will register here.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800/80 font-mono">
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
-                    No processing jobs currently in queue.
-                  </td>
+                  <th className="px-5 py-3.5">Report Title</th>
+                  <th className="px-5 py-3.5">Student / Scholar</th>
+                  <th className="px-5 py-3.5">Institution</th>
+                  <th className="px-5 py-3.5">Type & Target</th>
+                  <th className="px-5 py-3.5">Created</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              ) : (
-                filtered.map((j) => (
-                  <tr key={j.id} className="hover:bg-slate-800/30 transition-colors">
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredJobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="px-5 py-3.5">
-                      <div className="font-mono text-teal-400 font-bold">{j.id}</div>
-                      <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                        {j.jobType}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 max-w-xs">
-                      <div className="font-semibold text-slate-200 truncate">{j.reportTitle}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{j.studentEmail}</div>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-slate-300">
-                      {j.institution}
+                      <div className="font-semibold text-slate-200 line-clamp-1 max-w-md">{job.title}</div>
+                      <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                        Style: {job.citationStyle} • Chapters: {job.sections?.length || 0}
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono inline-flex items-center gap-1 ${
-                        j.status === "COMPLETED"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : j.status === "PROCESSING"
-                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                          : j.status === "FAILED"
-                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                          : "bg-slate-800 text-slate-400"
+                      <div className="font-medium text-slate-300">{job.user?.name || "Student"}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">{job.user?.email}</div>
+                    </td>
+                    <td className="px-5 py-3.5 text-teal-400 font-medium">
+                      {job.institution}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono text-slate-400">
+                      {job.reportType} ({job.targetPages}p)
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-400 font-mono">
+                      {new Date(job.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${
+                        job.status === "COMPLETED" 
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : job.status === "GENERATING"
+                          ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
+                          : "bg-slate-800 text-slate-300"
                       }`}>
-                        {j.status === "PROCESSING" && <RotateCw className="size-2.5 animate-spin" />}
-                        {j.status}
+                        <span className={`size-1.5 rounded-full ${
+                          job.status === "COMPLETED" ? "bg-emerald-400" : "bg-teal-400 animate-pulse"
+                        }`} />
+                        {job.status}
                       </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-slate-400">
-                      {j.duration}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-slate-400">
-                      {j.attempts}
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setSelectedJob(j)}
-                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          title="Inspect Diagnostics"
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedJob(job)}
+                          className="h-7 text-xs text-slate-300 hover:text-white"
                         >
-                          <Eye className="size-3.5" />
-                        </button>
-                        {j.status === "FAILED" && (
-                          <button
-                            onClick={() => retryJob(j.id)}
-                            className="p-1.5 rounded text-teal-400 hover:text-teal-300 hover:bg-teal-950/40 transition-colors"
-                            title="Retry Job"
-                          >
-                            <RotateCw className="size-3.5" />
-                          </button>
-                        )}
-                        {(j.status === "QUEUED" || j.status === "PROCESSING") && (
-                          <button
-                            onClick={() => cancelJob(j.id)}
-                            className="p-1.5 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
-                            title="Cancel Job"
-                          >
-                            <XCircle className="size-3.5" />
-                          </button>
-                        )}
+                          View Details
+                        </Button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Diagnostics Modal Dialog */}
+      {/* Details Modal */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div>
-                <span className="text-[10px] font-mono text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">
-                  {selectedJob.id}
-                </span>
-                <h3 className="text-sm font-bold text-white mt-1">Operational Diagnostics</h3>
-              </div>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <h3 className="font-semibold text-sm text-white">Job Details</h3>
               <button onClick={() => setSelectedJob(null)} className="text-slate-400 hover:text-white">
-                <X className="size-5" />
+                <X className="size-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs font-mono">
-              <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Service Node:</span>
-                  <span className="text-slate-200">{selectedJob.service}</span>
+            <div className="p-5 space-y-4">
+              <div>
+                <span className="text-xs text-slate-500">Report Title</span>
+                <p className="text-sm font-semibold text-white mt-0.5">{selectedJob.title}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500">Student:</span>
+                  <p className="text-slate-200 mt-0.5">{selectedJob.user?.name || "Student"} ({selectedJob.user?.email})</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Job Type:</span>
-                  <span className="text-teal-400">{selectedJob.jobType}</span>
+                <div>
+                  <span className="text-slate-500">Institution:</span>
+                  <p className="text-teal-400 mt-0.5">{selectedJob.institution}</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Duration:</span>
-                  <span className="text-slate-200">{selectedJob.duration}</span>
+                <div>
+                  <span className="text-slate-500">Word Target:</span>
+                  <p className="text-slate-200 mt-0.5 font-mono">{selectedJob.totalWordTarget.toLocaleString()} words</p>
                 </div>
-                <div className="flex justify-between">
+                <div>
                   <span className="text-slate-500">Status:</span>
-                  <span className="text-slate-200">{selectedJob.status}</span>
+                  <p className="text-teal-400 mt-0.5 font-mono">{selectedJob.status}</p>
                 </div>
               </div>
 
-              {selectedJob.errorReason && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300">
-                  <span className="font-bold block mb-1">Diagnostic Fault Trace:</span>
-                  <p className="text-[11px] leading-relaxed">{selectedJob.errorReason}</p>
+              {selectedJob.sections && selectedJob.sections.length > 0 && (
+                <div>
+                  <span className="text-xs text-slate-500 block mb-2">Chapters:</span>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {selectedJob.sections.map((sec) => (
+                      <div key={sec.id} className="p-2 bg-slate-950 rounded border border-slate-800 flex items-center justify-between text-xs">
+                        <span className="text-slate-200 truncate">Ch {sec.chapterNumber}: {sec.title}</span>
+                        <span className="text-[10px] text-teal-400 font-mono shrink-0 ml-2">{sec.status}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedJob(null)}
-                className="text-slate-400 hover:text-white"
-              >
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedJob(null)}>
                 Close
               </Button>
-              {selectedJob.status === "FAILED" && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    retryJob(selectedJob.id);
-                    setSelectedJob(null);
-                  }}
-                  className="bg-teal-500 text-slate-950 hover:bg-teal-400 font-semibold"
+              {selectedJob.status !== "COMPLETED" && (
+                <Button 
+                  size="sm" 
+                  disabled={actionLoading}
+                  onClick={() => handleUpdateStatus(selectedJob.id, "COMPLETED")}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
                 >
-                  Retry Job Now
+                  Mark Completed
                 </Button>
               )}
             </div>

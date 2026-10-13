@@ -41,8 +41,28 @@ export default function CreateReportLauncher() {
           <PlusCircle className="size-8 text-primary" /> Create New Academic Report
         </h1>
         <p className="text-muted-foreground mt-1">
-          Select your required university report type to launch the step-by-step guided assistant.
+          Select your required university report type or use our dynamic universal institution builder.
         </p>
+      </div>
+
+      {/* FEATURED UNIVERSAL UNIVERSITY CREATOR BANNER */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-teal-500/10 to-transparent border border-teal-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-500 text-white">
+            Universal Institutional Standard
+          </div>
+          <h2 className="text-lg font-bold text-foreground">
+            Universal Report Wizard (All Registered Universities)
+          </h2>
+          <p className="text-xs text-muted-foreground max-w-xl">
+            Choose from all supported institutions (UDSM, IFM, CBE, ARU, NIT, etc.) to automatically resolve official required chapters and formatting rules.
+          </p>
+        </div>
+        <Link href="/dashboard/reports/new" className="shrink-0 w-full sm:w-auto">
+          <Button className="w-full sm:w-auto bg-teal-600 hover:bg-teal-500 text-white gap-2 shadow-md">
+            Start Universal Wizard <ArrowRight className="size-4" />
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

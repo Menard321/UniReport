@@ -5,10 +5,12 @@ import Link from "next/link";
 import {
   ArrowLeft,
   GraduationCap,
+  Building2,
   Check,
   ChevronRight,
   Download,
   FileCheck,
+  FileText,
   Sparkles,
   RefreshCw,
   Copy,
@@ -16,9 +18,13 @@ import {
   Lock,
   CreditCard,
   PhoneCall,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 
 export default function FYPGeneratorPage() {
   const [step, setStep] = useState(1);
@@ -44,10 +50,20 @@ export default function FYPGeneratorPage() {
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"mobile" | "card">("mobile");
   const [paymentProvider, setPaymentProvider] = useState("M-Pesa");
-  const [phoneNumber, setPhoneNumber] = useState("0754123456");
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [showSimBankingFallback, setShowSimBankingFallback] = useState(false);
+  const [selectedBank, setSelectedBank] = useState<"CRDB" | "NMB">("CRDB");
+  const [bankReference, setBankReference] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("0627204980");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "doc">("pdf");
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const outlineSections = [
     { id: "ch1", title: "Chapter 1: Introduction & Problem Statement" },
@@ -157,24 +173,29 @@ The engineered platform satisfied all 3 specific research objectives.
     }
   };
 
-  const downloadFileLocally = (htmlDoc: string) => {
-    const blob = new Blob(["\ufeff", htmlDoc], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `FYP_Dissertation_${title.slice(0, 20).replace(/\s+/g, "_")}.doc`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleCopy = () => {
+    if (!generatedReport) return;
+    if (!isUnlocked) {
+      setShowPaymentModal(true);
+      return;
+    }
+    navigator.clipboard.writeText(generatedReport);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleExportDoc = async () => {
+  const handleExport = async (format: "pdf" = "pdf") => {
     if (!generatedReport) return;
+    setSelectedFormat("pdf");
 
     if (isUnlocked) {
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-      downloadFileLocally(header + generatedReport.replace(/\n/g, "<br>") + "</body></html>");
+      DocxCompilerEngine.openPdfPrintWindow({
+        title: `FYP Project (${targetPages} Pages) - ${title}`,
+        institution: university,
+        faculty,
+        programme,
+        content: generatedReport
+      });
       return;
     }
 
@@ -184,6 +205,7 @@ The engineered platform satisfied all 3 specific research objectives.
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
+          format: "pdf",
           options: {
             title,
             institution: university,
@@ -196,8 +218,15 @@ The engineered platform satisfied all 3 specific research objectives.
       const data = await res.json();
       if (res.status === 402 || data.requiresPayment) {
         setShowPaymentModal(true);
-      } else if (data.htmlDocument) {
-        downloadFileLocally(data.htmlDocument);
+      } else if (data.success) {
+        setIsUnlocked(true);
+        DocxCompilerEngine.openPdfPrintWindow({
+          title: `FYP Project (${targetPages} Pages) - ${title}`,
+          institution: university,
+          faculty,
+          programme,
+          content: generatedReport
+        });
       }
     } catch (e) {
       setShowPaymentModal(true);
@@ -205,6 +234,38 @@ The engineered platform satisfied all 3 specific research objectives.
   };
 
   const handleProcessPayment = async () => {
+    if (paymentMode === "mobile") {
+      if (!phoneNumber.match(/^(06|07)\d{8}$/)) {
+        alert("Please enter a valid Tanzanian phone number (e.g. 0627204980 / 0747461380)");
+        return;
+      }
+    } else {
+      if (showSimBankingFallback) {
+        if (!bankReference.trim()) {
+          alert("Please enter your transaction reference number.");
+          return;
+        }
+      } else {
+        const cleanCard = cardNumber.replace(/\s/g, "");
+        if (cleanCard.length !== 16) {
+          alert("Please enter a valid 16-digit card number.");
+          return;
+        }
+        if (!cardName.trim()) {
+          alert("Please enter the cardholder name.");
+          return;
+        }
+        if (cardExpiry.length !== 5) {
+          alert("Please enter a valid expiration date (MM/YY).");
+          return;
+        }
+        if (cardCvv.length < 3) {
+          alert("Please enter a valid 3-digit CVV / security code.");
+          return;
+        }
+      }
+    }
+
     setIsProcessingPayment(true);
     try {
       const res = await fetch("/api/v1/export/pay", {
@@ -212,8 +273,17 @@ The engineered platform satisfied all 3 specific research objectives.
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          paymentMethod: paymentProvider,
-          phoneNumber
+          paymentMethod: paymentMode === "mobile" 
+            ? paymentProvider 
+            : showSimBankingFallback 
+              ? selectedBank 
+              : "Card",
+          phoneNumber: paymentMode === "mobile" ? phoneNumber : undefined,
+          bankName: paymentMode === "card" && showSimBankingFallback ? selectedBank : undefined,
+          bankReference: paymentMode === "card" && showSimBankingFallback ? bankReference : undefined,
+          cardholderName: paymentMode === "card" && !showSimBankingFallback ? cardName : undefined,
+          last4: paymentMode === "card" && !showSimBankingFallback ? cardNumber.replace(/\s/g, "").slice(-4) : undefined,
+          cardBrand: paymentMode === "card" && !showSimBankingFallback ? (cardNumber.startsWith("4") ? "Visa" : "Mastercard") : undefined
         })
       });
 
@@ -221,8 +291,17 @@ The engineered platform satisfied all 3 specific research objectives.
       if (res.ok && data.success) {
         setIsUnlocked(true);
         setShowPaymentModal(false);
-        const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-        downloadFileLocally(header + generatedReport.replace(/\n/g, "<br>") + "</body></html>");
+
+        // Instantly execute PDF print/download
+        DocxCompilerEngine.openPdfPrintWindow({
+          title: `FYP Project (${targetPages} Pages) - ${title}`,
+          institution: university,
+          faculty,
+          programme,
+          content: generatedReport
+        });
+      } else {
+        alert(data.error || "Payment verification failed. Please try again.");
       }
     } catch (e) {
       alert("Payment failed. Please try again.");
@@ -236,7 +315,7 @@ The engineered platform satisfied all 3 specific research objectives.
       {/* PAYMENT MODAL */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+          <div className="bg-white dark:bg-slate-900 border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 relative">
             <button
               onClick={() => setShowPaymentModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
@@ -248,9 +327,9 @@ The engineered platform satisfied all 3 specific research objectives.
               <div className="size-12 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 mx-auto flex items-center justify-center mb-2">
                 <Lock className="size-6" />
               </div>
-              <h3 className="text-xl font-bold font-heading">Unlock FYP Dissertation Download</h3>
+              <h3 className="text-xl font-bold font-heading">Unlock FYP Project & Exports</h3>
               <p className="text-xs text-muted-foreground">
-                Pay TZS 5,000 to download the complete {targetPages}-Page editable Microsoft Word (.DOC) project.
+                Pay TZS 5,000 via <strong>Mobile Money</strong> or <strong>Bank Card</strong> to download the complete {targetPages}-Page publication-grade <strong>PDF</strong> and unlock <strong>Clipboard Copying</strong>.
               </p>
             </div>
 
@@ -259,44 +338,221 @@ The engineered platform satisfied all 3 specific research objectives.
                 <span>Project:</span>
                 <span>FYP Dissertation ({targetPages} Pages)</span>
               </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Access:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">PDF Download + Copy Access</span>
+              </div>
               <div className="flex justify-between font-bold text-purple-700 dark:text-purple-400 text-sm pt-1 border-t">
                 <span>Total Amount:</span>
                 <span>TZS 5,000</span>
               </div>
             </div>
 
-            {/* Mobile Money Provider Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground block">Select Payment Method</label>
-              <div className="grid grid-cols-3 gap-2">
-                {["M-Pesa", "Tigo Pesa", "Airtel Money"].map((provider) => (
+            {/* Mode Switcher: Mobile Money vs Bank Card */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMode("mobile")}
+                className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  paymentMode === "mobile"
+                    ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300"
+                    : "bg-background text-muted-foreground"
+                }`}
+              >
+                <PhoneCall className="size-3.5" /> Mobile Money
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode("card")}
+                className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  paymentMode === "card"
+                    ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300"
+                    : "bg-background text-muted-foreground"
+                }`}
+              >
+                <CreditCard className="size-3.5" /> Bank Card
+              </button>
+            </div>
+
+            {paymentMode === "mobile" ? (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground block">Select Operator</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {["M-Pesa", "Tigo Pesa", "Airtel Money", "Halopesa"].map((provider) => (
+                      <button
+                        key={provider}
+                        type="button"
+                        onClick={() => setPaymentProvider(provider)}
+                        className={`p-2 rounded-lg border text-xs font-bold text-center transition ${
+                          paymentProvider === provider
+                            ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300"
+                            : "bg-background text-muted-foreground"
+                        }`}
+                      >
+                        {provider}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground block mb-1 flex items-center justify-between">
+                    <span>Mobile Phone Number</span>
+                    <span className="text-[10px] text-purple-600 font-mono">Helpline: 0627204980 / 0747461380</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-lg border text-sm bg-background font-mono font-semibold"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="0627204980 / 0747461380"
+                  />
+                </div>
+              </div>
+            ) : !showSimBankingFallback ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                    Cardholder Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-lg border text-sm bg-background font-medium uppercase"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value)}
+                    placeholder="e.g. JOHN M. DOE"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                    16-Digit Card Number
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-lg border text-sm bg-background font-mono"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                      setCardNumber(raw.replace(/(\d{4})(?=\d)/g, "$1 "));
+                    }}
+                    placeholder="4123 4567 8901 2345"
+                    maxLength={19}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                      Expiry Date
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 rounded-lg border text-sm bg-background font-mono text-center"
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        if (raw.length >= 2) raw = raw.slice(0, 2) + "/" + raw.slice(2);
+                        setCardExpiry(raw);
+                      }}
+                      placeholder="MM/YY"
+                      maxLength={5}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                      CVV / CVN
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full p-2.5 rounded-lg border text-sm bg-background font-mono text-center"
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="3 digits"
+                      maxLength={4}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-1.5 border-t text-center">
                   <button
-                    key={provider}
-                    onClick={() => setPaymentProvider(provider)}
-                    className={`p-2.5 rounded-lg border text-xs font-bold text-center transition ${
-                      paymentProvider === provider
+                    type="button"
+                    onClick={() => setShowSimBankingFallback(true)}
+                    className="text-[11px] text-purple-600 hover:underline font-semibold inline-flex items-center gap-1"
+                  >
+                    <span>Paying via SimBanking or Wakala instead?</span>
+                    <ChevronDown className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold uppercase text-muted-foreground block">Select Bank</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSimBankingFallback(false)}
+                    className="text-xs text-purple-600 hover:underline font-semibold flex items-center gap-0.5"
+                  >
+                    <ChevronUp className="size-3" /> Back to Card
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBank("CRDB")}
+                    className={`p-2 rounded-lg border text-xs font-bold text-center transition ${
+                      selectedBank === "CRDB"
                         ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300"
                         : "bg-background text-muted-foreground"
                     }`}
                   >
-                    {provider}
+                    CRDB SimBanking
                   </button>
-                ))}
-              </div>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBank("NMB")}
+                    className={`p-2 rounded-lg border text-xs font-bold text-center transition ${
+                      selectedBank === "NMB"
+                        ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300"
+                        : "bg-background text-muted-foreground"
+                    }`}
+                  >
+                    NMB Direct
+                  </button>
+                </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5 flex items-center gap-1">
-                <PhoneCall className="size-3.5" /> Mobile Phone Number (Tanzania)
-              </label>
-              <input
-                type="text"
-                className="w-full p-3 rounded-lg border text-sm bg-background font-mono font-semibold"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="0754 XXX XXX"
-              />
-            </div>
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border text-[11px] space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Account:</span>
+                    <span className="font-mono font-bold text-purple-700 dark:text-purple-300">
+                      {selectedBank === "CRDB" ? "0152899450000" : "22310089456"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Lipa Namba:</span>
+                    <span className="font-mono font-bold text-foreground">
+                      {selectedBank === "CRDB" ? "5678901" : "4567890"}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                    Bank Reference / Receipt Code
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-lg border text-sm bg-background font-mono uppercase"
+                    value={bankReference}
+                    onChange={(e) => setBankReference(e.target.value)}
+                    placeholder="e.g. CRDB-TX98234"
+                  />
+                </div>
+              </div>
+            )}
 
             <Button
               onClick={handleProcessPayment}
@@ -305,11 +561,11 @@ The engineered platform satisfied all 3 specific research objectives.
             >
               {isProcessingPayment ? (
                 <>
-                  <RefreshCw className="size-4 animate-spin" /> Verifying Mobile Payment...
+                  <RefreshCw className="size-4 animate-spin" /> Verifying Payment...
                 </>
               ) : (
                 <>
-                  <CreditCard className="size-4" /> Pay TZS 5,000 & Download .DOC
+                  <CreditCard className="size-4" /> Pay TZS 5,000 & Download PDF
                 </>
               )}
             </Button>
@@ -562,34 +818,83 @@ The engineered platform satisfied all 3 specific research objectives.
           </div>
 
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-2xl p-6 flex flex-col overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between pb-4 border-b mb-4">
+            <div className="flex items-center justify-between pb-4 border-b mb-3">
               <div>
-                <h3 className="font-bold text-base">FYP Document Editor</h3>
+                <h3 className="font-bold text-base">FYP Document Workspace</h3>
                 <p className="text-xs text-muted-foreground font-mono">{university} • {targetPages} Pages ({citationStyle})</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(generatedReport)} disabled={!generatedReport} className="text-xs gap-1.5">
-                  <Copy className="size-3.5" /> Copy
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleCopy} 
+                  disabled={!generatedReport} 
+                  className={`text-xs gap-1.5 transition ${
+                    !isUnlocked 
+                      ? 'border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40' 
+                      : ''
+                  }`}
+                  title={!isUnlocked ? "Payment required to copy text" : "Copy to clipboard"}
+                >
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <Copy className="size-3.5" />}
+                  {copyFeedback ? "Copied!" : !isUnlocked ? "Copy (Locked)" : "Copy"}
                 </Button>
-                <Button size="sm" onClick={handleExportDoc} disabled={!generatedReport} className="text-xs gap-1.5 bg-purple-600 text-white">
-                  {!isUnlocked && <Lock className="size-3.5" />}
-                  <Download className="size-3.5" /> {isUnlocked ? "Download .DOC" : "Unlock & Download"}
+
+                <Button 
+                  size="sm" 
+                  onClick={() => handleExport("pdf")} 
+                  disabled={!generatedReport} 
+                  className="text-xs gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm transition"
+                  title={!isUnlocked ? "Payment required to download PDF" : "Download PDF Document"}
+                >
+                  {!isUnlocked ? <Lock className="size-3.5" /> : <FileText className="size-3.5" />}
+                  {isUnlocked ? "Download PDF" : "Unlock & Download PDF"}
                 </Button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div 
+              className={`flex-1 overflow-y-auto relative ${!isUnlocked ? 'select-none' : ''}`}
+              onCopy={(e) => {
+                if (!isUnlocked) {
+                  e.preventDefault();
+                  setShowPaymentModal(true);
+                }
+              }}
+              onContextMenu={(e) => {
+                if (!isUnlocked) {
+                  e.preventDefault();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (!isUnlocked && (e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C" || e.key === "x" || e.key === "X")) {
+                  e.preventDefault();
+                  setShowPaymentModal(true);
+                }
+              }}
+            >
               {isGenerating ? (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
                   <RefreshCw className="size-8 animate-spin text-primary" />
                   <p className="text-sm font-medium">Generating {targetPages}-page dissertation chapters...</p>
                 </div>
               ) : (
-                <textarea
-                  className="w-full h-full p-4 font-serif text-sm leading-relaxed border-none bg-transparent focus:outline-none resize-none text-slate-900 dark:text-slate-100"
-                  value={generatedReport}
-                  onChange={(e) => setGeneratedReport(e.target.value)}
-                />
+                <div className="relative h-full">
+                  <textarea
+                    readOnly={!isUnlocked}
+                    className={`w-full h-full p-4 font-serif text-sm leading-relaxed border-none bg-transparent focus:outline-none resize-none text-slate-900 dark:text-slate-100 ${
+                      !isUnlocked ? 'cursor-default select-none' : ''
+                    }`}
+                    style={{ userSelect: !isUnlocked ? "none" : "text" }}
+                    value={generatedReport}
+                    onChange={(e) => setGeneratedReport(e.target.value)}
+                  />
+                  {!isUnlocked && (
+                    <div className="absolute bottom-3 right-4 pointer-events-none opacity-40 text-[10px] font-mono uppercase tracking-widest text-slate-500 bg-white/80 dark:bg-slate-900/80 px-2 py-1 rounded border">
+                      Preview Only • Payment Required to Export
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -2,9 +2,9 @@ import { PrismaClient } from "@prisma/client";
 
 declare global {
   // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
+  var prisma: (PrismaClient & Record<string, any>) | undefined;
 }
 
-export const db = global.prisma || new PrismaClient();
+export const db: PrismaClient & Record<string, any> = global.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") global.prisma = db;

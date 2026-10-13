@@ -7,6 +7,14 @@ export interface AssignmentInput {
   targetPages: number; // e.g. 5, 10, 15, 25
   citationStyle?: "APA7" | "IEEE" | "HARVARD";
   customTemplateText?: string;
+  customTemplateSections?: Array<{
+    id?: string;
+    title: string;
+    description?: string;
+    order: number;
+    is_required?: boolean;
+  }>;
+  formattingRules?: Record<string, any>;
   evidenceData?: Record<string, any>;
 }
 
@@ -25,6 +33,7 @@ export interface ReportBlueprint {
   targetPages: number;
   totalWordTarget: number;
   citationStyle: string;
+  formattingRules?: Record<string, any>;
   sections: ReportSectionBlueprint[];
 }
 
@@ -40,7 +49,94 @@ export function analyzeAssignmentAndPlan(input: AssignmentInput): ReportBlueprin
 
   let sections: ReportSectionBlueprint[] = [];
 
-  if (input.reportType === "FIELDWORK") {
+  // Check if institution-specific verified template sections are provided
+  if (input.customTemplateSections && input.customTemplateSections.length > 0) {
+    const totalSecs = input.customTemplateSections.length;
+    sections = input.customTemplateSections.map((sec, idx) => {
+      // Allocate budget dynamically
+      const isIntroOrOutro = idx === 0 || idx === totalSecs - 1;
+      const budgetWeight = isIntroOrOutro ? 0.10 : 0.80 / (totalSecs - 2 || 1);
+      const budget = Math.max(250, Math.round(totalWordTarget * budgetWeight));
+
+      const titleUpper = sec.title.toUpperCase();
+      let subHeadings: string[] = [];
+
+      if (titleUpper.includes("PRELIMINAR") || titleUpper.includes("FRONT MATTER")) {
+        subHeadings = [
+          "Declaration and Authenticity Statement",
+          "Certification of Industrial Supervisor & University Assessor",
+          "Acknowledgements",
+          "Executive Summary / Abstract",
+          "Table of Contents and List of Acronyms"
+        ];
+      } else if (titleUpper.includes("CHAPTER 1") || titleUpper.includes("INTRODUCTION") || titleUpper.includes("BACKGROUND")) {
+        subHeadings = [
+          "1.1 Historical Background & Establishment of Host Organization",
+          "1.2 Organizational Vision, Mission, Core Values & Mandate",
+          "1.3 Governance Structure & Departmental Organogram",
+          "1.4 Placement Scope, Departmental Roles & Attachment Objectives"
+        ];
+      } else if (titleUpper.includes("CHAPTER 2") || titleUpper.includes("ACTIVITIES") || titleUpper.includes("OPERATIONAL") || titleUpper.includes("DUTIES")) {
+        subHeadings = [
+          "2.1 Weekly Logbook Overview & Daily Operational Workflows",
+          "2.2 Applied Technology Stack, Equipment & System Deployments",
+          "2.3 Technical Procedures, Troubleshooting & Production Routines",
+          "2.4 Departmental Rotations & Inter-Unit Collaboration"
+        ];
+      } else if (titleUpper.includes("CHAPTER 3") || titleUpper.includes("SKILLS") || titleUpper.includes("THEORY") || titleUpper.includes("METHODOLOG")) {
+        subHeadings = [
+          "3.1 Advanced Technical Competencies & Practical Skills Mastered",
+          "3.2 Alignment of University Curriculum Theories with Industry Practice",
+          "3.3 Professional Ethics, Workplace Health & Safety Protocols",
+          "3.4 Key Technical Project Milestones Accomplished"
+        ];
+      } else if (titleUpper.includes("CHAPTER 4") || titleUpper.includes("CHALLENGE") || titleUpper.includes("PROBLEM")) {
+        subHeadings = [
+          "4.1 Operational Bottlenecks & Infrastructure Challenges Encountered",
+          "4.2 Root Cause Technical Analysis & Workplace Limitations",
+          "4.3 Engineered Problem-Solving Interventions & Mitigations Applied",
+          "4.4 Professional Resilience & Lessons Learned from Failure Modes"
+        ];
+      } else if (titleUpper.includes("CHAPTER 5") || titleUpper.includes("CONCLUSION") || titleUpper.includes("RECOMMENDATION")) {
+        subHeadings = [
+          "5.1 Synthesis of Attachment Findings & Practical Takeaways",
+          "5.2 Actionable Recommendations for Host Organization Process Improvement",
+          "5.3 Curricular & Institutional Recommendations for University Faculty",
+          "5.4 Concluding Remarks on Professional Development"
+        ];
+      } else if (titleUpper.includes("REFERENCE") || titleUpper.includes("APPENDI")) {
+        subHeadings = [
+          `Authoritative Academic Bibliography (${citationStyle} Standard)`,
+          "Appendix 1: Verified Weekly Logbook Time Sheets",
+          "Appendix 2: Industrial Supervisor Endorsement Form",
+          "Appendix 3: Architectural Diagrams & Configuration Snippets"
+        ];
+      } else {
+        const chNum = sec.order || idx + 1;
+        subHeadings = [
+          `${chNum}.1 Theoretical Context & Scope`,
+          `${chNum}.2 Technical Analysis & Evidence Evaluation`,
+          `${chNum}.3 Strategic Implementation & Departmental Outcomes`
+        ];
+      }
+
+      const evidencePrompt = input.evidenceData
+        ? `Preserve authentic student evidence: Host Organization: "${input.evidenceData.organization || 'Host Firm'}", Department: "${input.evidenceData.department || 'Department'}", Supervisor: "${input.evidenceData.supervisor || 'Industrial Supervisor'}", Reported Tools: "${input.evidenceData.toolsUsed || 'Industry Tools'}", Logged Activities: "${input.evidenceData.activities || 'Daily operational tasks'}". Do NOT fabricate unrelated corporate facts or falsify log entries.`
+        : "Preserve authentic student field observations and technical data without fabricating unverified organizational facts.";
+
+      const promptInstructions = sec.description
+        ? `Adhere strictly to the official institutional guideline for this chapter: "${sec.description}". Target budget: approximately ${budget} words. ${evidencePrompt} Write exhaustive, publication-grade academic prose.`
+        : `Draft an exhaustive, rigorous academic section for "${sec.title}" according to ${input.institution} standards. Target budget: approximately ${budget} words. ${evidencePrompt}`;
+
+      return {
+        chapterNumber: sec.order || idx + 1,
+        title: sec.title,
+        subHeadings,
+        wordBudget: budget,
+        promptInstructions,
+      };
+    });
+  } else if (input.reportType === "FIELDWORK") {
     sections = [
       {
         chapterNumber: 1,

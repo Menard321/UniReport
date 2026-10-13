@@ -26,7 +26,6 @@ import {
   Bell,
   Sparkles
 } from "lucide-react";
-import { getCurrentSession, hasPermission } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 
 interface NavGroup {
@@ -42,16 +41,31 @@ interface NavGroup {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const session = getCurrentSession();
+  const [adminUser, setAdminUser] = useState<{ id: string; name: string | null; email: string; role: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Simulated Middleware Guard
+  // Live Admin Auth Guard
   useEffect(() => {
-    if (!hasPermission(session.role, "UNIREPORT_ADMIN")) {
-      router.push("/dashboard");
+    async function verifyAdminSession() {
+      try {
+        const res = await fetch("/api/auth/profile");
+        if (!res.ok) {
+          router.push("/auth/login");
+          return;
+        }
+        const data = await res.json();
+        if (!data.user || data.user.role !== "UNIREPORT_ADMIN") {
+          router.push("/dashboard");
+          return;
+        }
+        setAdminUser(data.user);
+      } catch {
+        router.push("/dashboard");
+      }
     }
-  }, [session, router]);
+    verifyAdminSession();
+  }, [router]);
 
   const navGroups: NavGroup[] = [
     {
@@ -187,11 +201,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">
           <div className="flex items-center gap-3 px-2 py-1 mb-2.5">
             <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-slate-800 to-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-teal-400 uppercase">
-              {session.name ? session.name.substring(0, 2) : "AD"}
+              {adminUser?.name ? adminUser.name.substring(0, 2) : "AD"}
             </div>
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-slate-200 truncate">{session.name || "Administrator"}</span>
-              <span className="text-[10px] text-teal-400/90 font-mono truncate">{session.email}</span>
+              <span className="text-xs font-bold text-slate-200 truncate">{adminUser?.name || "Administrator"}</span>
+              <span className="text-[10px] text-teal-400/90 font-mono truncate">{adminUser?.email || "admin@unireport.tz"}</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">

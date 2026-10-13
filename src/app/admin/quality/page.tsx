@@ -1,19 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ShieldCheck, 
   Search, 
   Filter, 
-  AlertTriangle, 
   CheckCircle2, 
-  FileWarning, 
-  ExternalLink, 
   Check, 
-  XCircle, 
   Eye, 
   HelpCircle,
-  FileCheck2,
+  RefreshCw,
+  Loader2,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,88 +20,75 @@ interface QualityIssue {
   reportId: string;
   topic: string;
   institution: string;
-  issueType: "CITATION_MISMATCH" | "MISSING_CHAPTER" | "FORMAT_VIOLATION" | "UNVERIFIED_CLAIM";
+  studentName: string;
+  studentEmail: string;
+  issueType: string;
   severity: "HIGH" | "MEDIUM" | "LOW";
   status: "OPEN" | "REVIEWED" | "RESOLVED";
   detectedAt: string;
+  chapterTitle: string;
+  qaScore: number;
   excerptSnippet: string;
   automatedNote: string;
 }
 
 export default function AdminQualityPage() {
-  const [issues, setIssues] = useState<QualityIssue[]>([
-    {
-      id: "qa_101",
-      reportId: "rep_4021",
-      topic: "Deep Learning for Crop Disease Classification in Morogoro",
-      institution: "SUA",
-      issueType: "CITATION_MISMATCH",
-      severity: "HIGH",
-      status: "OPEN",
-      detectedAt: "Today, 08:30 AM",
-      excerptSnippet: "As documented by Msangi et al. (2024), maize blight causes 45% yield losses across East Africa.",
-      automatedNote: "DOI search returned no matching publication under 'Msangi et al. 2024' in Crossref registry."
-    },
-    {
-      id: "qa_102",
-      reportId: "rep_4022",
-      topic: "Solar PV Feasibility Study for Dodoma Municipal Hospital",
-      institution: "UDOM",
-      issueType: "FORMAT_VIOLATION",
-      severity: "MEDIUM",
-      status: "OPEN",
-      detectedAt: "Yesterday",
-      excerptSnippet: "Left binding margin evaluated at 1.0 inch instead of UDOM mandated 1.5 inches.",
-      automatedNote: "Document structure checker flagged binding gutter margin deficit."
-    },
-    {
-      id: "qa_103",
-      reportId: "rep_4023",
-      topic: "Evaluation of Mobile Money Liquidity among Dar es Salaam MSMEs",
-      institution: "IFM",
-      issueType: "MISSING_CHAPTER",
-      severity: "HIGH",
-      status: "REVIEWED",
-      detectedAt: "Oct 8, 2026",
-      excerptSnippet: "Chapter 4 (Data Analysis) generated without corresponding Chapter 3 (Research Methodology).",
-      automatedNote: "Missing prerequisite chapter detected prior to draft completion."
-    },
-    {
-      id: "qa_104",
-      reportId: "rep_4024",
-      topic: "Smart Water Metering with LoRaWAN in Temeke District",
-      institution: "DIT",
-      issueType: "UNVERIFIED_CLAIM",
-      severity: "LOW",
-      status: "RESOLVED",
-      detectedAt: "Oct 7, 2026",
-      excerptSnippet: "Non-revenue water losses in Temeke municipal network estimated at 62% in 2025.",
-      automatedNote: "Citation present but missing specific DAWASA technical report page reference."
-    }
-  ]);
-
+  const [issues, setIssues] = useState<QualityIssue[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedIssue, setSelectedIssue] = useState<QualityIssue | null>(null);
   const [feedback, setFeedback] = useState("");
 
+  const fetchIssues = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/quality");
+      if (res.ok) {
+        const data = await res.json();
+        setIssues(data.issues || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchIssues();
+  }, []);
+
+  const resolveIssue = async (id: string) => {
+    try {
+      const res = await fetch("/api/admin/quality", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionId: id, status: "APPROVED" })
+      });
+      if (res.ok) {
+        setIssues(issues.map(i => i.id === id ? { ...i, status: "RESOLVED" } : i));
+        if (selectedIssue && selectedIssue.id === id) {
+          setSelectedIssue({ ...selectedIssue, status: "RESOLVED" });
+        }
+        setFeedback(`Issue marked as RESOLVED and section approved.`);
+        setTimeout(() => setFeedback(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filtered = issues.filter(i => {
+    const term = search.toLowerCase();
     const matchesSearch = 
-      i.topic.toLowerCase().includes(search.toLowerCase()) ||
-      i.institution.toLowerCase().includes(search.toLowerCase()) ||
-      i.id.toLowerCase().includes(search.toLowerCase());
+      i.topic.toLowerCase().includes(term) ||
+      i.institution.toLowerCase().includes(term) ||
+      i.id.toLowerCase().includes(term) ||
+      i.studentName.toLowerCase().includes(term);
     const matchesStatus = statusFilter === "ALL" || i.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  const resolveIssue = (id: string) => {
-    setIssues(issues.map(i => i.id === id ? { ...i, status: "RESOLVED" } : i));
-    if (selectedIssue && selectedIssue.id === id) {
-      setSelectedIssue({ ...selectedIssue, status: "RESOLVED" });
-    }
-    setFeedback(`Issue ${id} marked as RESOLVED.`);
-    setTimeout(() => setFeedback(""), 3000);
-  };
 
   return (
     <div className="space-y-6">
@@ -116,8 +100,18 @@ export default function AdminQualityPage() {
             Academic Quality & Citation Integrity
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Audit flagged citations, missing sections, and formatting non-compliance across student drafts.
+            Audit flagged citations, missing sections, and formatting non-compliance across student drafts in PostgreSQL.
           </p>
+        </div>
+        <div>
+          <Button 
+            onClick={fetchIssues} 
+            variant="outline" 
+            size="sm" 
+            className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
+          >
+            <RefreshCw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh QA Audit
+          </Button>
         </div>
       </div>
 
@@ -125,7 +119,7 @@ export default function AdminQualityPage() {
       <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl flex items-start gap-3">
         <HelpCircle className="size-4 text-teal-400 shrink-0 mt-0.5" />
         <p className="text-xs text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Academic Review Protocol:</strong> Automated quality scans serve as diagnostic aides to uphold university standards. Flagged citations or discrepancies must be confirmed through Crossref/DOI repositories before issuing student revision requests.
+          <strong className="text-slate-200">Academic Review Protocol:</strong> Automated quality scans evaluate chapter alignment against TCU guidelines. Flagged sections can be reviewed and approved directly by administrators.
         </p>
       </div>
 
@@ -142,7 +136,7 @@ export default function AdminQualityPage() {
           <Search className="size-4 absolute left-3 top-2.5 text-slate-500" />
           <input
             type="text"
-            placeholder="Search report topic, university, or issue ID..."
+            placeholder="Search report topic, university, or scholar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-9 pl-9 pr-3 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
@@ -168,90 +162,99 @@ export default function AdminQualityPage() {
       {/* Issues Table */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800 font-mono">
-              <tr>
-                <th className="px-5 py-3.5">Issue ID</th>
-                <th className="px-5 py-3.5">Project / Research Topic</th>
-                <th className="px-5 py-3.5">Category</th>
-                <th className="px-5 py-3.5">Severity</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Logged</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.length === 0 ? (
+          {loading ? (
+            <div className="p-16 text-center text-slate-400">
+              <Loader2 className="size-8 text-teal-400 animate-spin mx-auto mb-3" />
+              <p className="text-sm">Scanning database for compliance flags...</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800 font-mono">
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
-                    No academic quality flags detected. All drafts meeting university standards.
-                  </td>
+                  <th className="px-5 py-3.5">Section / Chapter</th>
+                  <th className="px-5 py-3.5">Project / Research Topic</th>
+                  <th className="px-5 py-3.5">Category</th>
+                  <th className="px-5 py-3.5">Severity</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">QA Score</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              ) : (
-                filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-teal-400 font-bold">
-                      {item.id}
-                    </td>
-                    <td className="px-5 py-3.5 max-w-xs">
-                      <div className="font-semibold text-slate-200 truncate">{item.topic}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{item.institution} &bull; {item.reportId}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-[10px] font-mono bg-slate-950 text-slate-300 px-2 py-0.5 rounded border border-slate-800">
-                        {item.issueType.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        item.severity === "HIGH" 
-                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                          : item.severity === "MEDIUM"
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                          : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                      }`}>
-                        {item.severity}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        item.status === "RESOLVED"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : item.status === "REVIEWED"
-                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                          : "bg-slate-800 text-slate-400"
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-400 font-mono">
-                      {item.detectedAt}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setSelectedIssue(item)}
-                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          title="Inspect Excerpt"
-                        >
-                          <Eye className="size-3.5" />
-                        </button>
-                        {item.status !== "RESOLVED" && (
-                          <button
-                            onClick={() => resolveIssue(item.id)}
-                            className="p-1.5 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 transition-colors"
-                            title="Mark Resolved"
-                          >
-                            <Check className="size-3.5" />
-                          </button>
-                        )}
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                      <ShieldCheck className="size-10 text-slate-600 mx-auto mb-2" />
+                      <p className="font-semibold text-slate-300">No academic quality flags detected</p>
+                      <p className="text-xs text-slate-500 mt-1">All student report chapters meet guideline compliance standards.</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filtered.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-slate-200">
+                        {item.chapterTitle}
+                      </td>
+                      <td className="px-5 py-3.5 max-w-xs">
+                        <div className="font-semibold text-slate-200 truncate">{item.topic}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{item.institution} &bull; {item.studentName}</div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[10px] font-mono bg-slate-950 text-slate-300 px-2 py-0.5 rounded border border-slate-800">
+                          {item.issueType.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          item.severity === "HIGH" 
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            : item.severity === "MEDIUM"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                        }`}>
+                          {item.severity}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          item.status === "RESOLVED"
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : item.status === "REVIEWED"
+                            ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                            : "bg-slate-800 text-slate-400"
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-teal-400 font-bold">
+                        {item.qaScore}%
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedIssue(item)}
+                            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            title="Inspect Excerpt"
+                          >
+                            <Eye className="size-3.5" />
+                          </button>
+                          {item.status !== "RESOLVED" && (
+                            <button
+                              onClick={() => resolveIssue(item.id)}
+                              className="p-1.5 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 transition-colors"
+                              title="Mark Approved"
+                            >
+                              <Check className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -262,7 +265,7 @@ export default function AdminQualityPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
                 <span className="text-[10px] font-mono text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">
-                  {selectedIssue.institution} &bull; {selectedIssue.id}
+                  {selectedIssue.institution}
                 </span>
                 <h3 className="text-sm font-bold text-white mt-1">Quality Inspection Excerpt</h3>
               </div>
@@ -300,7 +303,7 @@ export default function AdminQualityPage() {
                   onClick={() => resolveIssue(selectedIssue.id)}
                   className="bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-bold"
                 >
-                  Mark as Resolved
+                  Approve Section
                 </Button>
               )}
             </div>

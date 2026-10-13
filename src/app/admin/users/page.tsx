@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Users2, 
   Search, 
   Filter, 
-  Download, 
-  UserPlus, 
-  MoreVertical, 
   ShieldCheck, 
   ShieldAlert, 
   Ban, 
@@ -15,362 +12,399 @@ import {
   Edit3, 
   X, 
   GraduationCap,
-  Key
+  RefreshCw,
+  Loader2,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface UserItem {
+interface LiveUser {
   id: string;
-  name: string;
+  name: string | null;
   email: string;
-  university: string;
+  university: string | null;
   role: "STUDENT" | "ACADEMIC_STAFF" | "UNIREPORT_ADMIN";
-  tier: "FREE" | "STUDENT" | "PRO" | "INSTITUTIONAL";
-  status: "Active" | "Suspended";
-  joinedDate: string;
-  tokensUsed: number;
+  createdAt: string;
+  subscription: {
+    tier: "FREE" | "STUDENT" | "PRO" | "INSTITUTIONAL";
+    isActive: boolean;
+    aiTokensUsed: number;
+    projectsUsed: number;
+    storageUsedMb: number;
+  } | null;
+  _count: {
+    documents: number;
+  };
 }
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserItem[]>([
-    { id: "usr_01", name: "Amani Kiboko", email: "amani.k@udsm.ac.tz", university: "UDSM", role: "STUDENT", tier: "PRO", status: "Active", joinedDate: "2026-10-01", tokensUsed: 42300 },
-    { id: "usr_02", name: "Fatma Othman", email: "f.othman@sua.ac.tz", university: "SUA", role: "STUDENT", tier: "PRO", status: "Active", joinedDate: "2026-10-03", tokensUsed: 89100 },
-    { id: "usr_03", name: "Baraka Mushi", email: "bmushi@udom.ac.tz", university: "UDOM", role: "STUDENT", tier: "FREE", status: "Suspended", joinedDate: "2026-10-05", tokensUsed: 1200 },
-    { id: "usr_04", name: "Dr. Lilian Ngowi", email: "lngowi@muhas.ac.tz", university: "MUHAS", role: "ACADEMIC_STAFF", tier: "INSTITUTIONAL", status: "Active", joinedDate: "2026-10-08", tokensUsed: 145000 },
-    { id: "usr_05", name: "Geofrey Masanja", email: "masanja@dit.ac.tz", university: "DIT", role: "STUDENT", tier: "STUDENT", status: "Active", joinedDate: "2026-10-09", tokensUsed: 15400 },
-    { id: "usr_06", name: "System Administrator", email: "admin@unireport.tz", university: "HQ", role: "UNIREPORT_ADMIN", tier: "INSTITUTIONAL", status: "Active", joinedDate: "2026-09-15", tokensUsed: 312000 },
-  ]);
-
+  const [users, setUsers] = useState<LiveUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [tierFilter, setTierFilter] = useState("ALL");
-  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
+  const [selectedUser, setSelectedUser] = useState<LiveUser | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Form state for edit modal
+  const [editRole, setEditRole] = useState<string>("STUDENT");
+  const [editTier, setEditTier] = useState<string>("FREE");
+  const [editActive, setEditActive] = useState<boolean>(true);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (roleFilter !== "ALL") params.append("role", roleFilter);
+      if (tierFilter !== "ALL") params.append("tier", tierFilter);
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error("Failed to load users", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [roleFilter, tierFilter]);
 
   const filteredUsers = users.filter((u) => {
+    const term = search.toLowerCase();
     const matchesSearch = 
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.university.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
-    const matchesTier = tierFilter === "ALL" || u.tier === tierFilter;
-    return matchesSearch && matchesRole && matchesTier;
+      (u.name || "").toLowerCase().includes(term) ||
+      u.email.toLowerCase().includes(term) ||
+      (u.university || "").toLowerCase().includes(term);
+    return matchesSearch;
   });
 
-  const toggleStatus = (id: string) => {
-    setUsers(users.map((u) => {
-      if (u.id === id) {
-        const newStatus = u.status === "Active" ? "Suspended" : "Active";
-        setFeedbackMsg(`User ${u.name} status updated to ${newStatus}`);
-        return { ...u, status: newStatus };
-      }
-      return u;
-    }));
-    setTimeout(() => setFeedbackMsg(""), 3000);
+  const handleOpenEdit = (user: LiveUser) => {
+    setSelectedUser(user);
+    setEditRole(user.role);
+    setEditTier(user.subscription?.tier || "FREE");
+    setEditActive(user.subscription?.isActive ?? true);
+    setIsEditModalOpen(true);
   };
 
-  const handleSaveUser = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveUser = async () => {
     if (!selectedUser) return;
-    setUsers(users.map(u => u.id === selectedUser.id ? selectedUser : u));
-    setIsEditModalOpen(false);
-    setFeedbackMsg(`User ${selectedUser.name} saved successfully.`);
-    setTimeout(() => setFeedbackMsg(""), 3000);
+    try {
+      setSaving(true);
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          role: editRole,
+          tier: editTier,
+          isActive: editActive
+        })
+      });
+
+      if (res.ok) {
+        setFeedbackMsg(`User ${selectedUser.name || selectedUser.email} updated successfully!`);
+        setIsEditModalOpen(false);
+        fetchUsers();
+        setTimeout(() => setFeedbackMsg(""), 3500);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleToggleStatus = async (user: LiveUser) => {
+    const nextStatus = !(user.subscription?.isActive ?? true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          isActive: nextStatus
+        })
+      });
+      if (res.ok) {
+        setUsers(prev => prev.map(u => {
+          if (u.id === user.id) {
+            return {
+              ...u,
+              subscription: u.subscription ? { ...u.subscription, isActive: nextStatus } : null
+            };
+          }
+          return u;
+        }));
+        setFeedbackMsg(`Status for ${user.name || user.email} updated.`);
+        setTimeout(() => setFeedbackMsg(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const activeCount = users.filter(u => u.subscription?.isActive ?? true).length;
+  const proCount = users.filter(u => u.subscription?.tier === "PRO" || u.subscription?.tier === "INSTITUTIONAL").length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold font-heading text-white tracking-tight flex items-center gap-2">
-            <Users2 className="size-6 text-teal-400" />
-            User & Access Management
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Administer scholar credentials, academic roles, and usage allowances.
+          <h1 className="text-2xl font-bold font-heading text-white tracking-tight">Student & Scholar Directory</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Real-time management of student credentials, university associations, and subscription allocations.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <Button 
+            onClick={fetchUsers} 
             variant="outline" 
             size="sm" 
-            className="text-xs bg-slate-900 border-slate-800 text-slate-300 hover:text-white"
-            onClick={() => alert("CSV export triggered. File downloading...")}
+            className="border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
           >
-            <Download className="size-3.5 mr-1.5" /> Export Records
-          </Button>
-          <Button 
-            size="sm" 
-            className="text-xs bg-teal-500 text-slate-950 hover:bg-teal-400 font-semibold"
-            onClick={() => {
-              const newUser: UserItem = {
-                id: `usr_${Date.now()}`,
-                name: "New Student",
-                email: "new.student@udsm.ac.tz",
-                university: "UDSM",
-                role: "STUDENT",
-                tier: "FREE",
-                status: "Active",
-                joinedDate: new Date().toISOString().split("T")[0],
-                tokensUsed: 0
-              };
-              setUsers([newUser, ...users]);
-              setSelectedUser(newUser);
-              setIsEditModalOpen(true);
-            }}
-          >
-            <UserPlus className="size-3.5 mr-1.5" /> Add User
+            <RefreshCw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Directory
           </Button>
         </div>
       </div>
 
       {feedbackMsg && (
-        <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg text-xs text-teal-300 flex items-center gap-2">
+        <div className="bg-teal-500/10 border border-teal-500/20 text-teal-300 px-4 py-3 rounded-xl text-xs flex items-center gap-2">
           <CheckCircle2 className="size-4 shrink-0" />
           {feedbackMsg}
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-80">
-          <Search className="size-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search student name, email, university..."
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Total Registered Users</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-white font-heading">{users.length}</span>
+            <span className="text-xs font-mono text-teal-400">PostgreSQL</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Active Accounts</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-emerald-400 font-heading">{activeCount}</span>
+            <span className="text-xs font-mono text-emerald-400/80">Operational</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Pro & Institutional Subscribers</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-indigo-400 font-heading">{proCount}</span>
+            <span className="text-xs font-mono text-indigo-400/80">Paid Tiers</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls: Search and Filter */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/70 p-4 border border-slate-800/80 rounded-xl">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-2.5 size-4 text-slate-500" />
+          <input 
+            type="text" 
+            placeholder="Search scholar by name, email, university..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <Filter className="size-3.5 text-slate-500" />
-            <span>Role:</span>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-8 px-2 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-            >
-              <option value="ALL">All Roles</option>
-              <option value="STUDENT">Student</option>
-              <option value="ACADEMIC_STAFF">Staff / Supervisor</option>
-              <option value="UNIREPORT_ADMIN">Administrator</option>
-            </select>
-          </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <select 
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-teal-500"
+          >
+            <option value="ALL">All Roles</option>
+            <option value="STUDENT">Student</option>
+            <option value="ACADEMIC_STAFF">Academic Staff</option>
+            <option value="UNIREPORT_ADMIN">Administrator</option>
+          </select>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span>Tier:</span>
-            <select
-              value={tierFilter}
-              onChange={(e) => setTierFilter(e.target.value)}
-              className="h-8 px-2 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-            >
-              <option value="ALL">All Tiers</option>
-              <option value="FREE">Free</option>
-              <option value="STUDENT">Student</option>
-              <option value="PRO">Pro</option>
-              <option value="INSTITUTIONAL">Institutional</option>
-            </select>
-          </div>
+          <select 
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-teal-500"
+          >
+            <option value="ALL">All Tiers</option>
+            <option value="FREE">Free Tier</option>
+            <option value="STUDENT">Student Plan</option>
+            <option value="PRO">Research Pro</option>
+            <option value="INSTITUTIONAL">Institutional</option>
+          </select>
         </div>
       </div>
 
-      {/* Users Data Table */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      {/* Data Table */}
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800 font-mono">
-              <tr>
-                <th className="px-5 py-3.5">User Identity</th>
-                <th className="px-5 py-3.5">University</th>
-                <th className="px-5 py-3.5">System Role</th>
-                <th className="px-5 py-3.5">Subscription Tier</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Tokens Used</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredUsers.length === 0 ? (
+          {loading ? (
+            <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="size-8 text-teal-400 animate-spin mb-3" />
+              <p className="text-sm">Loading user directory from PostgreSQL...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-16 text-center flex flex-col items-center justify-center text-slate-400">
+              <Users2 className="size-12 text-slate-600 mb-3" />
+              <p className="text-base font-semibold text-slate-300">No users match your criteria</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                As new scholars sign up or take actions, their verified records will populate here.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/70 border-b border-slate-800/80 font-mono">
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
-                    No users match your active search filters.
-                  </td>
+                  <th className="px-5 py-3.5">Scholar / Credentials</th>
+                  <th className="px-5 py-3.5">University</th>
+                  <th className="px-5 py-3.5">Role</th>
+                  <th className="px-5 py-3.5">Subscription Tier</th>
+                  <th className="px-5 py-3.5">Reports</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="font-semibold text-slate-200">{user.name}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{user.email}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                        {user.university}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        user.role === "UNIREPORT_ADMIN" 
-                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" 
-                          : user.role === "ACADEMIC_STAFF"
-                          ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                          : "bg-slate-800 text-slate-300"
-                      }`}>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredUsers.map((user) => {
+                  const isActive = user.subscription?.isActive ?? true;
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="font-semibold text-slate-200">{user.name || "Academic Scholar"}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{user.email}</div>
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-300 font-medium">
+                        {user.university || "—"}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[11px] text-slate-400">
                         {user.role}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        user.tier === "PRO" 
-                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30" 
-                          : user.tier === "INSTITUTIONAL"
-                          ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                          : "bg-slate-800 text-slate-400"
-                      }`}>
-                        {user.tier}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex items-center gap-1.5 font-medium ${
-                        user.status === "Active" ? "text-emerald-400" : "text-rose-400"
-                      }`}>
-                        <span className={`size-1.5 rounded-full ${user.status === "Active" ? "bg-emerald-400" : "bg-rose-400"}`} />
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-slate-400">
-                      {user.tokensUsed.toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          title="Edit User"
-                        >
-                          <Edit3 className="size-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleStatus(user.id)}
-                          className={`p-1.5 rounded transition-colors ${
-                            user.status === "Active" 
-                              ? "text-rose-400 hover:bg-rose-950/40" 
-                              : "text-emerald-400 hover:bg-emerald-950/40"
-                          }`}
-                          title={user.status === "Active" ? "Suspend Account" : "Reactivate Account"}
-                        >
-                          {user.status === "Active" ? <Ban className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        <div className="p-3.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-          <span>Showing {filteredUsers.length} of {users.length} registered accounts</span>
-          <span className="font-mono">Audit policy: ISO-27001 compliant</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          user.subscription?.tier === "PRO" 
+                            ? "bg-teal-500/20 text-teal-300 border border-teal-500/30" 
+                            : user.subscription?.tier === "INSTITUTIONAL" 
+                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                            : "bg-slate-800 text-slate-300 border border-slate-700"
+                        }`}>
+                          {user.subscription?.tier || "FREE"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-slate-300">
+                        {user._count?.documents || 0}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isActive 
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                        }`}>
+                          <span className={`size-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                          {isActive ? "Active" : "Suspended"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleOpenEdit(user)}
+                            className="h-7 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                          >
+                            <Edit3 className="size-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleToggleStatus(user)}
+                            className={`h-7 text-xs ${isActive ? 'text-rose-400 hover:bg-rose-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                          >
+                            {isActive ? "Suspend" : "Activate"}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Edit User Modal Dialog */}
+      {/* Edit User Modal */}
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Key className="size-4 text-teal-400" /> Edit Scholar Account
-              </h3>
-              <button 
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="size-5" />
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <h3 className="font-semibold text-sm text-white">Edit User: {selectedUser.name || selectedUser.email}</h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="size-4" />
               </button>
             </div>
-
-            <form onSubmit={handleSaveUser} className="space-y-4 text-xs">
+            
+            <div className="p-5 space-y-4">
               <div>
-                <label className="text-slate-400 block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={selectedUser.name}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, name: e.target.value })}
-                  className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                  required
-                />
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">User Role</label>
+                <select 
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                >
+                  <option value="STUDENT">STUDENT</option>
+                  <option value="ACADEMIC_STAFF">ACADEMIC_STAFF</option>
+                  <option value="UNIREPORT_ADMIN">UNIREPORT_ADMIN</option>
+                </select>
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1">Email Address</label>
-                <input
-                  type="email"
-                  value={selectedUser.email}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, email: e.target.value })}
-                  className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-400 block mb-1">System Role</label>
-                  <select
-                    value={selectedUser.role}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value as any })}
-                    className="w-full h-9 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="STUDENT">STUDENT</option>
-                    <option value="ACADEMIC_STAFF">ACADEMIC_STAFF</option>
-                    <option value="UNIREPORT_ADMIN">UNIREPORT_ADMIN</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-400 block mb-1">Subscription Tier</label>
-                  <select
-                    value={selectedUser.tier}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, tier: e.target.value as any })}
-                    className="w-full h-9 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="FREE">FREE</option>
-                    <option value="STUDENT">STUDENT</option>
-                    <option value="PRO">PRO</option>
-                    <option value="INSTITUTIONAL">INSTITUTIONAL</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2.5">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-slate-400 hover:text-white"
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Subscription Tier</label>
+                <select 
+                  value={editTier}
+                  onChange={(e) => setEditTier(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                 >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  size="sm" 
-                  className="bg-teal-500 text-slate-950 hover:bg-teal-400 font-semibold"
-                >
-                  Save Changes
-                </Button>
+                  <option value="FREE">FREE</option>
+                  <option value="STUDENT">STUDENT</option>
+                  <option value="PRO">PRO</option>
+                  <option value="INSTITUTIONAL">INSTITUTIONAL</option>
+                </select>
               </div>
-            </form>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Account State</label>
+                <select 
+                  value={editActive ? "ACTIVE" : "SUSPENDED"}
+                  onChange={(e) => setEditActive(e.target.value === "ACTIVE")}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                >
+                  <option value="ACTIVE">ACTIVE (Authorized)</option>
+                  <option value="SUSPENDED">SUSPENDED (Locked)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveUser} disabled={saving} className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

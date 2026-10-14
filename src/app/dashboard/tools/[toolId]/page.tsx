@@ -24,7 +24,16 @@ import {
   Sliders,
   CheckCircle2,
   ExternalLink,
-  ArrowRight
+  ArrowRight,
+  Presentation,
+  BarChart,
+  Briefcase,
+  CalendarClock,
+  Search,
+  CheckSquare,
+  Layers,
+  Code,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TOOLS } from "@/lib/tools-config";
@@ -58,6 +67,36 @@ export default function ToolPage() {
   const [mQuestions, setMQuestions] = useState("");
   const [mPopulation, setMPopulation] = useState("");
   const [mTools, setMTools] = useState("");
+
+  // 4. Research Gap Assistant State
+  const [rgDiscipline, setRgDiscipline] = useState("");
+  const [rgProblem, setRgProblem] = useState("");
+  const [rgScope, setRgScope] = useState("");
+  const [rgPriorLit, setRgPriorLit] = useState("");
+
+  // 5. Slide Outline Generator State
+  const [sgType, setSgType] = useState("Final Viva Voce / Project Defense (Chapters 1-5)");
+  const [sgDuration, setSgDuration] = useState("15 Minutes (10-12 Slides)");
+  const [sgContent, setSgContent] = useState("");
+  const [sgFocus, setSgFocus] = useState("Balanced (Methodology + Results + Recommendations)");
+
+  // 6. Diagram & Chart Assistant State
+  const [dcCategory, setDcCategory] = useState("Conceptual Framework (IV -> MV -> DV)");
+  const [dcVariables, setDcVariables] = useState("");
+  const [dcRelationships, setDcRelationships] = useState("");
+  const [dcOrientation, setDcOrientation] = useState("Top-to-Bottom (TD)");
+  const [diagramTab, setDiagramTab] = useState<"visual" | "code">("visual");
+
+  // 7. Reference Manager State
+  const [rmStyle, setRmStyle] = useState<"APA 7th Edition" | "Harvard" | "IEEE" | "MLA 9th">("APA 7th Edition");
+  const [rmInputType, setRmInputType] = useState("Raw Messy Reference Text");
+  const [rmRawInput, setRmRawInput] = useState("");
+
+  // 8. Research Planner State
+  const [rpLevel, setRpLevel] = useState("Undergraduate Final Year Project (2 Semesters)");
+  const [rpDeadline, setRpDeadline] = useState("6 Months Standard Semester");
+  const [rpPhase, setRpPhase] = useState("Concept & Topic Approval");
+  const [rpUniversity, setRpUniversity] = useState("University of Dar es Salaam (UDSM)");
 
   // Payment Gate State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -192,6 +231,78 @@ Data Collection Instruments & Tech Stack: ${mTools || "Primary data collection i
 
 Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tanzanian university standards. Include Research Philosophy & Design justification (citing methodology authorities such as Kothari, Creswell, or Saunders), Target Population with Yamane or Cochran sample size calculation formula, Instruments & Reliability (Cronbach's Alpha), Data Analysis Plan, and Ethical Clearances (COSTECH).`;
     handleGenerate(promptText);
+  };
+
+  const handleGenerateResearchGap = () => {
+    if (!rgDiscipline.trim() || !rgProblem.trim()) {
+      alert("Please enter your Academic Discipline and Problem Domain.");
+      return;
+    }
+    const promptText = `Academic Discipline / Field: ${rgDiscipline}
+Problem Phenomenon & Context: ${rgProblem}
+Target Geographical / Institutional Boundary: ${rgScope || "Tanzanian Higher Education / Industry Context"}
+Existing Literature Extract / Context: ${rgPriorLit || "Prior studies report standard outcomes with mixed empirical consensus"}
+
+Please conduct an exhaustive Tri-Factor Research Gap Analysis (Empirical, Theoretical, Methodological) and synthesize a defense-grade 2-paragraph Problem Statement ready for Chapter 1.`;
+    handleGenerate(promptText);
+  };
+
+  const handleGenerateSlides = () => {
+    if (!sgContent.trim()) {
+      alert("Please paste your chapter content, findings, or executive summary.");
+      return;
+    }
+    const promptText = `Defense Presentation Nature: ${sgType}
+Target Duration & Slide Allocation: ${sgDuration}
+Panel Evaluation Focus: ${sgFocus}
+Academic Content & Key Findings Extract:
+${sgContent}
+
+Please generate an executive defense presentation slide deck outline with Slide Titles, punchy bullet points, Panel Question Anticipator, and verbatim Speaker Notes.`;
+    handleGenerate(promptText);
+  };
+
+  const handleGenerateDiagram = () => {
+    if (!dcVariables.trim()) {
+      alert("Please enter the variables or system components to model.");
+      return;
+    }
+    const promptText = `Diagram Category: ${dcCategory}
+Layout Orientation: ${dcOrientation}
+Variables & Components: ${dcVariables}
+Hypothesized Causal Relationships / Pipeline Steps: ${dcRelationships || "Sequential causal relationships between all nodes"}
+
+Please output a valid, clean Mermaid.js diagram code block, followed by an academic Figure Title & Caption, a Variable Specification Table, and methodological justification.`;
+    handleGenerate(promptText);
+  };
+
+  const handleGenerateReferences = () => {
+    if (!rmRawInput.trim()) {
+      alert("Please enter the messy references, DOI, or publication text to format.");
+      return;
+    }
+    const promptText = `Target Citation Standard: ${rmStyle}
+Input Metadata Format: ${rmInputType}
+Bibliographic Data to Normalize:
+${rmRawInput}
+
+Please parse and normalize into immaculate ${rmStyle} citations with both In-Text citations (parenthetical and narrative) and full End-Reference bibliography.`;
+    handleGenerate(promptText);
+  };
+
+  const handleGeneratePlanner = () => {
+    const promptText = `Degree / Project Level: ${rpLevel}
+Total Project Duration / Timeline: ${rpDeadline}
+Current Research Stage: ${rpPhase}
+Target University Guidelines: ${rpUniversity}
+
+Please architect a comprehensive 4-phase week-by-week dissertation roadmap with milestones, deliverables, ethical clearance risk warnings (COSTECH), and a 14-day immediate action checklist.`;
+    handleGenerate(promptText);
+  };
+
+  const extractMermaidCode = (text: string) => {
+    const match = text.match(/```mermaid([\s\S]*?)```/);
+    return match ? match[1].trim() : "";
   };
 
   const downloadDocLocally = (content: string) => {
@@ -636,10 +747,20 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
                 ? "Literature Review Scope" 
                 : toolId === "methodology" 
                 ? "Methodology Specifications" 
+                : toolId === "research-gap"
+                ? "Research Gap Scope"
+                : toolId === "slide-generator"
+                ? "Defense Presentation Parameters"
+                : toolId === "diagram-chart"
+                ? "Visual Modeling Specifications"
+                : toolId === "reference-manager"
+                ? "Citation Normalization Settings"
+                : toolId === "planner"
+                ? "Dissertation Milestone Parameters"
                 : "Provide Context"}
             </span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-muted-foreground uppercase tracking-wider">
-              {toolId === "topic-assistant" || toolId === "lit-review" || toolId === "methodology" ? "Guided Engine" : "Assistant"}
+              {["topic-assistant", "lit-review", "methodology", "research-gap", "slide-generator", "diagram-chart", "reference-manager", "planner"].includes(toolId) ? "Guided Engine" : "Assistant"}
             </span>
           </div>
 
@@ -812,6 +933,300 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
                   />
                 </div>
               </div>
+            ) : toolId === "research-gap" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Degree Programme / Academic Discipline *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BSc in Computer Science, Public Health, Procurement & Logistics"
+                    value={rgDiscipline}
+                    onChange={(e) => setRgDiscipline(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Problem Phenomenon & Domain *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Low adoption of digital compliance systems among peri-urban informal merchants"
+                    value={rgProblem}
+                    onChange={(e) => setRgProblem(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Target Geographical / Institutional Boundary
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ilala District, Dar es Salaam or Regional Referral Hospitals"
+                    value={rgScope}
+                    onChange={(e) => setRgScope(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Existing Literature Extract / Context
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="e.g. Studies by Mushi (2020) and TRA (2023) focused on large formal taxpayers in Arusha, but didn't address peri-urban retail traders."
+                    value={rgPriorLit}
+                    onChange={(e) => setRgPriorLit(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : toolId === "slide-generator" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Defense Nature *
+                    </label>
+                    <select
+                      value={sgType}
+                      onChange={(e) => setSgType(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="Final Viva Voce / Project Defense (Chapters 1-5)">Final Project Defense (Viva Voce)</option>
+                      <option value="Proposal Defense (Chapters 1-3)">Research Proposal Defense</option>
+                      <option value="Work in Progress / Seminar Presentation">Departmental Seminar</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Target Duration *
+                    </label>
+                    <select
+                      value={sgDuration}
+                      onChange={(e) => setSgDuration(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="10 Minutes (8 slides)">10 Minutes (8 Slides)</option>
+                      <option value="15 Minutes (10-12 slides)">15 Minutes (10–12 Slides)</option>
+                      <option value="20 Minutes (15 slides)">20 Minutes (15 Slides)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Panel Evaluation Focus
+                  </label>
+                  <select
+                    value={sgFocus}
+                    onChange={(e) => setSgFocus(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="Balanced (Methodology + Results + Recommendations)">Balanced (Methodology + Results + Impact)</option>
+                    <option value="Methodology & Data Rigor (Focus on Sampling & Formulas)">Methodology & Statistical Rigor</option>
+                    <option value="Engineering Prototype & System Demonstration">Technical Prototype / Architecture</option>
+                    <option value="Practical Policy & Industry Recommendations">Policy & Industry Recommendations</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Chapter Content, Findings & Objectives to Summarize *
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="Paste your abstract, problem statement, key findings, and conclusion here to generate the slide deck."
+                    value={sgContent}
+                    onChange={(e) => setSgContent(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : toolId === "diagram-chart" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Diagram Category *
+                    </label>
+                    <select
+                      value={dcCategory}
+                      onChange={(e) => setDcCategory(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="Conceptual Framework (IV -> MV -> DV)">Conceptual Framework (IV &rarr; MV &rarr; DV)</option>
+                      <option value="Methodology Workflow Flowchart">Methodology Workflow Flowchart</option>
+                      <option value="System Architecture / Data Pipeline">System Architecture / Pipeline</option>
+                      <option value="Entity Relationship Diagram (ERD)">Entity Relationship Diagram (ERD)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Layout Orientation
+                    </label>
+                    <select
+                      value={dcOrientation}
+                      onChange={(e) => setDcOrientation(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="Top-to-Bottom (TD)">Top to Bottom (Vertical)</option>
+                      <option value="Left-to-Right (LR)">Left to Right (Horizontal)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Variables, Entities or System Modules *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Independent: Digital Skills, Access; Moderating: Policy; Dependent: Financial Inclusion"
+                    value={dcVariables}
+                    onChange={(e) => setDcVariables(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Hypothesized Relationships / Pipeline Connections
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. H1: Digital Skills positively impacts Financial Inclusion. H2: Policy moderates the relationship between Access and Inclusion."
+                    value={dcRelationships}
+                    onChange={(e) => setDcRelationships(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : toolId === "reference-manager" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Citation Standard *
+                    </label>
+                    <select
+                      value={rmStyle}
+                      onChange={(e) => setRmStyle(e.target.value as any)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="APA 7th Edition">APA 7th Edition (Standard)</option>
+                      <option value="Harvard">Harvard Referencing Style</option>
+                      <option value="IEEE">IEEE Format (Engineering/CS)</option>
+                      <option value="MLA 9th">MLA 9th Edition</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Metadata Input Type
+                    </label>
+                    <select
+                      value={rmInputType}
+                      onChange={(e) => setRmInputType(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="Raw Messy Reference Text">Raw / Messy Bibliographic Text</option>
+                      <option value="DOI / Persistent Identifier">DOI (e.g. 10.1016/j.chb...)</option>
+                      <option value="Book / Journal Extract">Book or Article Details</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Paste References or Publications to Standardize *
+                  </label>
+                  <textarea
+                    rows={5}
+                    placeholder={`e.g. John Mushi, 2021, Mobile Payments in East Africa, Journal of Economics Vol 4, Issue 2, pages 55-70, DOI 10.1016/j.jecon.2021.05\n\n(You can paste multiple lines to batch format)`}
+                    value={rmRawInput}
+                    onChange={(e) => setRmRawInput(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background leading-relaxed focus:ring-2 focus:ring-primary focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+            ) : toolId === "planner" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Degree / Project Level *
+                    </label>
+                    <select
+                      value={rpLevel}
+                      onChange={(e) => setRpLevel(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="Undergraduate Final Year Project (2 Semesters)">Undergraduate FYP (2 Semesters)</option>
+                      <option value="Master's Dissertation (12-18 Months)">Master's Dissertation (12–18 Mos)</option>
+                      <option value="Diploma Project (3-6 Months)">Ordinary Diploma Project</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Total Time Window *
+                    </label>
+                    <select
+                      value={rpDeadline}
+                      onChange={(e) => setRpDeadline(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="3 Months Rapid Sprint">3 Months (Rapid Sprint)</option>
+                      <option value="6 Months Standard Semester">6 Months (Standard Academic Year)</option>
+                      <option value="9 Months Comprehensive">9 Months (Comprehensive)</option>
+                      <option value="12 Months Postgraduate">12 Months (Postgraduate Thesis)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Current Completed Stage
+                  </label>
+                  <select
+                    value={rpPhase}
+                    onChange={(e) => setRpPhase(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="Concept & Topic Approval">Stage 0: Topic Ideation & Proposal Concept</option>
+                    <option value="Proposal Defense Passed">Stage 1: Proposal Defended, Preparing Instruments</option>
+                    <option value="Field Data Collection">Stage 2: Primary Data Collection / Fieldwork</option>
+                    <option value="Data Analysis & Drafting">Stage 3: Data Analysis & Draft Chapters</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Target University Calendar / Guidelines
+                  </label>
+                  <select
+                    value={rpUniversity}
+                    onChange={(e) => setRpUniversity(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    <option value="University of Dar es Salaam (UDSM)">University of Dar es Salaam (UDSM)</option>
+                    <option value="University of Dodoma (UDOM)">University of Dodoma (UDOM)</option>
+                    <option value="Sokoine University of Agriculture (SUA)">Sokoine University of Agriculture (SUA)</option>
+                    <option value="Ardhi University (ARU)">Ardhi University (ARU)</option>
+                    <option value="Dar es Salaam Institute of Technology (DIT)">DIT / MUST Technical Guidelines</option>
+                    <option value="Generic Tanzanian Higher Education Standard">Generic Tanzania Standard (TCU)</option>
+                  </select>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="text-sm font-medium">What should the assistant know?</div>
@@ -856,6 +1271,51 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
               >
                 {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
                 {isGenerating ? "Architecting Methodology..." : "Architect Defense-Ready Methodology"}
+              </Button>
+            ) : toolId === "research-gap" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-rose-600 hover:bg-rose-500 text-white font-bold" 
+                onClick={handleGenerateResearchGap}
+                disabled={isGenerating || !rgDiscipline.trim() || !rgProblem.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Analyzing Literature Landscape..." : "Uncover Tri-Factor Research Gaps"}
+              </Button>
+            ) : toolId === "slide-generator" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-purple-600 hover:bg-purple-500 text-white font-bold" 
+                onClick={handleGenerateSlides}
+                disabled={isGenerating || !sgContent.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Synthesizing Defense Slides..." : "Generate Defense Slide Deck Outline"}
+              </Button>
+            ) : toolId === "diagram-chart" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-teal-600 hover:bg-teal-500 text-white font-bold" 
+                onClick={handleGenerateDiagram}
+                disabled={isGenerating || !dcVariables.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Architecting Visual Model..." : "Generate Mermaid.js Diagram & Model"}
+              </Button>
+            ) : toolId === "reference-manager" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold" 
+                onClick={handleGenerateReferences}
+                disabled={isGenerating || !rmRawInput.trim()}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Standardizing Citations..." : `Format & Normalize ${rmStyle}`}
+              </Button>
+            ) : toolId === "planner" ? (
+              <Button 
+                className="w-full h-12 shadow-md gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold" 
+                onClick={handleGeneratePlanner}
+                disabled={isGenerating}
+              >
+                {isGenerating ? <RefreshCw className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                {isGenerating ? "Scheduling Milestones..." : "Architect Dissertation Roadmap"}
               </Button>
             ) : (
               <Button 
@@ -963,7 +1423,156 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
                   </div>
                 )}
 
-                {output}
+                {toolId === "research-gap" && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <Search className="size-5 text-rose-600 shrink-0" />
+                      <span className="text-xs font-semibold text-rose-950 dark:text-rose-200">
+                        Tri-Factor gaps identified. Formulated problem statement ready for Chapter 1.
+                      </span>
+                    </div>
+                    <Link href="/dashboard/tools/fyp-generator">
+                      <Button size="sm" className="bg-rose-600 hover:bg-rose-500 text-white gap-1.5 text-xs font-bold shrink-0">
+                        Carry into FYP <ArrowRight className="size-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {toolId === "slide-generator" && (
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <Presentation className="size-5 text-purple-600 shrink-0" />
+                      <span className="text-xs font-semibold text-purple-950 dark:text-purple-200">
+                        Defense slide deck ready. Practice your oral delivery with the speaker notes.
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-purple-300 dark:border-purple-700 text-xs font-bold shrink-0 gap-1"
+                      onClick={() => {
+                        if (!isUnlocked) {
+                          setShowPaymentModal(true);
+                        } else {
+                          navigator.clipboard.writeText(output);
+                          alert("Slide deck outline copied to clipboard!");
+                        }
+                      }}
+                    >
+                      <Copy className="size-3.5" /> Copy Deck
+                    </Button>
+                  </div>
+                )}
+
+                {toolId === "diagram-chart" && (
+                  <div className="p-3 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 rounded-xl mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <BarChart className="size-5 text-teal-600 shrink-0" />
+                      <span className="text-xs font-semibold text-teal-950 dark:text-teal-200">
+                        Mermaid.js diagram generated with academic figure caption.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={diagramTab === "visual" ? "default" : "outline"}
+                        className={`text-xs h-7 px-2.5 ${diagramTab === "visual" ? "bg-teal-600 hover:bg-teal-500" : ""}`}
+                        onClick={() => setDiagramTab("visual")}
+                      >
+                        <Eye className="size-3.5 mr-1" /> Full Figure
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={diagramTab === "code" ? "default" : "outline"}
+                        className={`text-xs h-7 px-2.5 ${diagramTab === "code" ? "bg-teal-600 hover:bg-teal-500" : ""}`}
+                        onClick={() => setDiagramTab("code")}
+                      >
+                        <Code className="size-3.5 mr-1" /> Mermaid Code
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {toolId === "reference-manager" && (
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="size-5 text-indigo-600 shrink-0" />
+                      <span className="text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+                        Normalized citations formatted in {rmStyle}.
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-indigo-300 dark:border-indigo-700 text-xs font-bold shrink-0 gap-1"
+                      onClick={() => {
+                        if (!isUnlocked) {
+                          setShowPaymentModal(true);
+                        } else {
+                          navigator.clipboard.writeText(output);
+                          alert("References copied to clipboard!");
+                        }
+                      }}
+                    >
+                      <Copy className="size-3.5" /> Copy Citations
+                    </Button>
+                  </div>
+                )}
+
+                {toolId === "planner" && (
+                  <div className="p-3 bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800 rounded-xl mb-4 flex items-center justify-between gap-3 font-sans">
+                    <div className="flex items-center gap-2">
+                      <CalendarClock className="size-5 text-cyan-600 shrink-0" />
+                      <span className="text-xs font-semibold text-cyan-950 dark:text-cyan-200">
+                        4-Phase academic roadmap with COSTECH clearance timeline.
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-cyan-300 dark:border-cyan-700 text-xs font-bold shrink-0 gap-1"
+                      onClick={() => {
+                        if (!isUnlocked) {
+                          setShowPaymentModal(true);
+                        } else {
+                          navigator.clipboard.writeText(output);
+                          alert("Milestone roadmap copied to clipboard!");
+                        }
+                      }}
+                    >
+                      <Copy className="size-3.5" /> Copy Roadmap
+                    </Button>
+                  </div>
+                )}
+
+                {toolId === "diagram-chart" && diagramTab === "code" ? (
+                  <div className="space-y-4 font-mono">
+                    <div className="p-4 rounded-xl bg-slate-900 text-teal-400 text-xs overflow-x-auto border border-slate-800">
+                      <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-800 text-slate-400 font-sans">
+                        <span>Mermaid.js Source Code</span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-6 text-xs text-teal-400 hover:text-white"
+                          onClick={() => {
+                            const code = extractMermaidCode(output) || output;
+                            navigator.clipboard.writeText(code);
+                            alert("Mermaid code copied to clipboard!");
+                          }}
+                        >
+                          <Copy className="size-3 mr-1" /> Copy Code
+                        </Button>
+                      </div>
+                      <pre className="whitespace-pre">{extractMermaidCode(output) || output}</pre>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-sans">
+                      Paste this code block into any Mermaid-compatible viewer, Markdown document, or GitHub repository.
+                    </p>
+                  </div>
+                ) : (
+                  output
+                )}
                 {!isUnlocked && (
                   <div className="mt-8 pt-4 border-t text-center text-xs text-slate-400 uppercase font-mono tracking-wider font-sans">
                     — Preview Mode • Payment Required to Copy or Export —

@@ -125,32 +125,44 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               
               {/* OUR MISSION */}
-              <div className="p-8 md:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md relative overflow-hidden flex flex-col justify-between">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-bl-full pointer-events-none" />
+              <div className="group p-8 md:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-2xl hover:-translate-y-2.5 hover:border-teal-500/60 dark:hover:border-teal-500/60 transition-all duration-300 ease-out relative overflow-hidden flex flex-col justify-between cursor-pointer select-none">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:scale-125 group-hover:bg-teal-500/20 group-hover:w-44 group-hover:h-44" />
                 <div>
-                  <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-6">
-                    <Target className="size-6" />
+                  <div className="w-14 h-14 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 group-hover:bg-teal-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-teal-500/30">
+                    <Target className="size-7" />
                   </div>
                   <h3 className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-2">OUR PURPOSE</h3>
-                  <h2 className="text-2xl font-bold font-heading text-foreground mb-4">OUR MISSION</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold font-heading text-foreground mb-4 transition-colors duration-200 group-hover:text-teal-600 dark:group-hover:text-teal-400">OUR MISSION</h2>
                   <p className="text-muted-foreground leading-relaxed text-base">
                     To simplify academic report development through accessible AI-assisted technology that supports structured writing, clear communication, responsible research, and institution-aware document preparation.
                   </p>
                 </div>
+                <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-semibold text-teal-600 dark:text-teal-400">
+                  <span>Driven by institutional compliance</span>
+                  <span className="flex items-center gap-1 transition-transform duration-300 group-hover:translate-x-1.5 font-bold">
+                    Learn more <ArrowRight className="size-3.5" />
+                  </span>
+                </div>
               </div>
 
               {/* OUR VISION */}
-              <div className="p-8 md:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md relative overflow-hidden flex flex-col justify-between">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-bl-full pointer-events-none" />
+              <div className="group p-8 md:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-2xl hover:-translate-y-2.5 hover:border-blue-500/60 dark:hover:border-blue-500/60 transition-all duration-300 ease-out relative overflow-hidden flex flex-col justify-between cursor-pointer select-none">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:scale-125 group-hover:bg-blue-500/20 group-hover:w-44 group-hover:h-44" />
                 <div>
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center mb-6">
-                    <Compass className="size-6" />
+                  <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-500/30">
+                    <Compass className="size-7" />
                   </div>
                   <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">OUR AMBITION</h3>
-                  <h2 className="text-2xl font-bold font-heading text-foreground mb-4">OUR VISION</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold font-heading text-foreground mb-4 transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">OUR VISION</h2>
                   <p className="text-muted-foreground leading-relaxed text-base">
                     To become a trusted academic reporting platform that makes high-quality report development more accessible to students, researchers, and professionals across Tanzania and beyond.
                   </p>
+                </div>
+                <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  <span>Advancing Tanzanian academic rigor</span>
+                  <span className="flex items-center gap-1 transition-transform duration-300 group-hover:translate-x-1.5 font-bold">
+                    Learn more <ArrowRight className="size-3.5" />
+                  </span>
                 </div>
               </div>
 
@@ -196,14 +208,15 @@ export default function AboutPage() {
                   desc: "Make report planning, development, formatting, and revision easier to navigate."
                 }
               ].map((val, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div key={idx} className="group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-sm flex flex-col justify-between hover:shadow-xl hover:-translate-y-2 hover:border-teal-500/50 transition-all duration-300 cursor-default overflow-hidden">
                   <div>
-                    <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 group-hover:bg-teal-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-teal-500/25">
                       <val.icon className="size-5" />
                     </div>
-                    <h3 className="font-bold text-base text-foreground mb-2">{val.title}</h3>
+                    <h3 className="font-bold text-base text-foreground mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{val.title}</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">{val.desc}</p>
                   </div>
+                  <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-teal-500 to-emerald-400 w-0 group-hover:w-full transition-all duration-300" />
                 </div>
               ))}
             </div>
@@ -254,17 +267,18 @@ export default function AboutPage() {
                   desc: "Review your final report and export to formatted DOCX or print-ready PDF files."
                 }
               ].map((st, i) => (
-                <div key={i} className="relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-sm">
+                <div key={i} className="group relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-sm hover:shadow-xl hover:-translate-y-2 hover:border-teal-500/50 transition-all duration-300 cursor-default overflow-hidden">
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs font-mono font-extrabold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 px-2.5 py-1 rounded-md">
+                      <span className="text-xs font-mono font-extrabold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 px-2.5 py-1 rounded-md transition-colors duration-300 group-hover:bg-teal-600 group-hover:text-white">
                         STEP {st.step}
                       </span>
-                      <st.icon className="size-5 text-slate-400" />
+                      <st.icon className="size-5 text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 group-hover:scale-110 transition-all duration-300" />
                     </div>
-                    <h3 className="font-bold text-base text-foreground mb-2">{st.title}</h3>
+                    <h3 className="font-bold text-base text-foreground mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{st.title}</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">{st.desc}</p>
                   </div>
+                  <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-teal-500 to-emerald-400 w-0 group-hover:w-full transition-all duration-500" />
                 </div>
               ))}
             </div>

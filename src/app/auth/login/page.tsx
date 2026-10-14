@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BookOpenText, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// UniReportTZ Login Page
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -50,9 +52,16 @@ export default function LoginPage() {
        
        <div className="w-full max-w-md bg-white dark:bg-slate-900 shadow-xl rounded-2xl p-8 relative z-10 border border-border">
           <div className="text-center mb-8">
-            <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <div className="flex bg-primary text-white p-1.5 rounded-lg">
-                <BookOpenText className="size-6" />
+            <Link href="/" className="inline-flex items-center gap-2 mb-4">
+              <div className="relative size-14 rounded-xl overflow-hidden shadow-md flex items-center justify-center mx-auto">
+                <Image
+                  src="/logo.png"
+                  alt="UniReportTZ Logo"
+                  width={56}
+                  height={56}
+                  className="object-contain"
+                  priority
+                />
               </div>
             </Link>
             <h1 className="text-2xl font-bold font-heading text-primary dark:text-white mb-2">Welcome Back</h1>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
@@ -17,13 +17,27 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
-          <div className="flex bg-primary text-white p-1.5 rounded-lg">
-            <BookOpenText className="size-5" />
+    <header 
+      className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      suppressHydrationWarning
+    >
+      <div className="container mx-auto flex h-16 items-center px-4 md:px-6" suppressHydrationWarning>
+        <Link 
+          href="/" 
+          className="flex items-center gap-2.5 mr-6 hover:opacity-90 transition-opacity"
+          suppressHydrationWarning
+        >
+          <div className="relative size-9 rounded-lg overflow-hidden flex items-center justify-center shadow-sm" suppressHydrationWarning>
+            <Image
+              src="/logo.png"
+              alt="UniReportTZ Logo"
+              width={36}
+              height={36}
+              className="object-contain"
+              priority
+            />
           </div>
-          <span className="text-xl font-bold font-heading hidden md:inline-block tracking-tight text-primary dark:text-white">
+          <span className="text-xl font-bold font-heading hidden md:inline-block tracking-tight text-primary dark:text-white" suppressHydrationWarning>
             UniReportTZ
           </span>
         </Link>

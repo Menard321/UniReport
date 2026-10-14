@@ -30,6 +30,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   supportTickets      SupportTicket[]
   notifications       Notification[]
+  reportSpecifications ReportSpecificationRecord[]
 }
 
 enum UserRole {
@@ -264,5 +265,114 @@ model University {
 enum UniversityStatus {
   VERIFIED
   PENDING_REVIEW
+}
+
+// -----------------------------------------------------------------------------
+// ALL-DISCIPLINE REPORT ENGINE ARCHITECTURAL MODELS
+// -----------------------------------------------------------------------------
+
+enum DisciplineStatus {
+  VERIFIED_PRODUCTION
+  BETA
+  EXPERIMENTAL
+  AWAITING_VERIFICATION
+}
+
+model DisciplineRegistryRecord {
+  id                  String           @id @default(cuid())
+  slug                String           @unique
+  name                String
+  category            String           // STEM, HEALTH, HUMANITIES, COMMERCE, EDUCATION
+  status              DisciplineStatus @default(VERIFIED_PRODUCTION)
+  statusNotes         String?
+  supportedReportTypes String[]
+  provenanceStandard  String?
+  verifiedBy          String?
+  lastAuditDate       DateTime?
+  configJson          String?          @db.Text
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model ReportSpecificationRecord {
+  id                     String    @id @default(cuid())
+  userId                 String
+  specificationId        String    @unique
+  universityId           String
+  universityName         String
+  programmeId            String
+  programmeName          String
+  reportType             String
+  reportTitle            String
+  citationStyle          String
+  totalTargetWords       Int
+  formattingJson         String    @db.Text
+  sectionsJson           String    @db.Text
+  conflictsJson          String?   @db.Text
+  status                 String    @default("COMPILED") // COMPILED, CONFIRMED, GENERATED, AUDITED
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calculations           CalculationRecord[]
+  diagrams               DiagramRecord[]
+  complianceAudits       ComplianceAuditResult[]
+}
+
+model CalculationRecord {
+  id                     String                    @id @default(cuid())
+  specificationId        String
+  calculationId          String                    @unique
+  module                 String
+  formulaCode            String
+  formulaName            String
+  latexEquation          String
+  inputsJson             String                    @db.Text
+  assumptionsJson        String?                   @db.Text
+  intermediateStepsJson  String?                   @db.Text
+  outputValue            Float
+  outputFormatted        String
+  outputUnit             String
+  validationStatus       String                    @default("VALID")
+  professionalDisclaimer String?                   @db.Text
+  createdAt              DateTime                  @default(now())
+
+  specification          ReportSpecificationRecord @relation(fields: [specificationId], references: [specificationId], onDelete: Cascade)
+}
+
+model DiagramRecord {
+  id                     String                    @id @default(cuid())
+  specificationId        String
+  diagramId              String                    @unique
+  diagramType            String
+  title                  String
+  caption                String?
+  format                 String                    @default("MERMAID") // MERMAID, SVG_CHART, MATRIX_TABLE
+  sourceDefinition       String                    @db.Text
+  renderedSvg            String?                   @db.Text
+  isValid                Boolean                   @default(true)
+  createdAt              DateTime                  @default(now())
+
+  specification          ReportSpecificationRecord @relation(fields: [specificationId], references: [specificationId], onDelete: Cascade)
+}
+
+model ComplianceAuditResult {
+  id                     String                    @id @default(cuid())
+  specificationId        String
+  auditScore             Int                       // 0 - 100
+  isCompliant            Boolean                   @default(true)
+  structuralCheck        Boolean                   @default(true)
+  numericalCheck         Boolean                   @default(true)
+  visualCheck            Boolean                   @default(true)
+  citationCheck          Boolean                   @default(true)
+  privacyCheck           Boolean                   @default(true)
+  disciplineCheck        Boolean                   @default(true)
+  renderCheck            Boolean                   @default(true)
+  errorsJson             String?                   @db.Text
+  warningsJson           String?                   @db.Text
+  remediationPlan        String?                   @db.Text
+  auditedAt              DateTime                  @default(now())
+
+  specification          ReportSpecificationRecord @relation(fields: [specificationId], references: [specificationId], onDelete: Cascade)
 }
 

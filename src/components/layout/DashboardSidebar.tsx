@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  BookOpenText,
   Home,
   FolderKanban,
   FileText,
@@ -79,10 +79,19 @@ export function DashboardSidebar() {
   return (
     <aside className="w-64 border-r bg-slate-50/70 dark:bg-slate-900/60 hidden md:flex flex-col min-h-screen">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-border/60 bg-white dark:bg-slate-950">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <BookOpenText className="size-6 text-primary" />
-          <span className="font-bold font-heading text-lg text-primary dark:text-white tracking-tight">
+      <div className="h-16 flex items-center px-6 border-b border-border/60 bg-white dark:bg-slate-950" suppressHydrationWarning>
+        <Link href="/dashboard" className="flex items-center gap-2.5" suppressHydrationWarning>
+          <div className="relative size-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0" suppressHydrationWarning>
+            <Image
+              src="/logo.png"
+              alt="UniReportTZ Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="font-bold font-heading text-lg text-primary dark:text-white tracking-tight" suppressHydrationWarning>
             UniReportTZ
           </span>
         </Link>

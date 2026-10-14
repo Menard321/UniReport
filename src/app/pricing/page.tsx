@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CheckCircle2 } from "lucide-react";
@@ -10,6 +10,18 @@ import { TzPaymentGateway } from "@/components/billing/TzPaymentGateway";
 
 export default function PricingPage() {
   const [showCheckout, setShowCheckout] = useState(false);
+  const [studentPrice, setStudentPrice] = useState(10000);
+
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.pricing?.studentMonthlyTzs) {
+          setStudentPrice(d.pricing.studentMonthlyTzs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -54,7 +66,7 @@ export default function PricingPage() {
               <div>
                 <h3 className="text-xl font-bold mb-2 text-white">Student Pro</h3>
                 <p className="text-3xl font-bold mb-6">
-                  TZS 10,000 <span className="text-sm font-normal text-teal-200">/ month</span>
+                  TZS {new Intl.NumberFormat("en-TZ").format(studentPrice)} <span className="text-sm font-normal text-teal-200">/ month</span>
                 </p>
                 <ul className="space-y-4 mb-8">
                   {[
@@ -117,7 +129,7 @@ export default function PricingPage() {
         <TzPaymentGateway 
           planName="Student Pro"
           planId="STUDENT"
-          amount={10000}
+          amount={studentPrice}
           onSuccess={() => {
             setShowCheckout(false);
             window.location.href = "/dashboard";

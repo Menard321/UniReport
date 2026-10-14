@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BookOpenText, CheckCircle2, ChevronRight, GraduationCap } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2, ChevronRight, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function OnboardingPage() {
@@ -11,10 +12,18 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <header className="border-b bg-white dark:bg-slate-900 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookOpenText className="size-5 text-primary" />
+        <Link href="/" className="flex items-center gap-2">
+          <div className="relative size-7 rounded-md overflow-hidden flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="UniReportTZ Logo"
+              width={28}
+              height={28}
+              className="object-contain"
+            />
+          </div>
           <span className="font-bold font-heading text-lg text-primary dark:text-white">UniReportTZ</span>
-        </div>
+        </Link>
         <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           Step {step} of 3
         </div>

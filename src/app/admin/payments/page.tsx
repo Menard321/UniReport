@@ -13,7 +13,12 @@ import {
   Building, 
   BadgeCheck,
   RefreshCw,
-  Loader2
+  Loader2,
+  Sliders,
+  Sparkles,
+  Save,
+  FileText,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -43,6 +48,93 @@ export default function AdminPaymentsPage() {
   const [providerFilter, setProviderFilter] = useState<string>("ALL");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // Dynamic Pricing Configuration State
+  const [pricing, setPricing] = useState({
+    singleDocumentExportTzs: 5000,
+    studentMonthlyTzs: 9900,
+    proMonthlyTzs: 24900,
+    institutionalYearlyTzs: 450000,
+    lastUpdatedBy: "",
+    lastUpdatedAt: "",
+  });
+  const [pricingLoading, setPricingLoading] = useState(true);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingSuccessMsg, setPricingSuccessMsg] = useState("");
+  const [pricingErrorMsg, setPricingErrorMsg] = useState("");
+
+  const fetchPricing = async () => {
+    try {
+      setPricingLoading(true);
+      const res = await fetch("/api/admin/pricing");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pricing) {
+          setPricing(data.pricing);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load pricing configuration", err);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleSavePricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setPricingSaving(true);
+      setPricingSuccessMsg("");
+      setPricingErrorMsg("");
+
+      const res = await fetch("/api/admin/pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pricing),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update pricing.");
+      }
+
+      setPricing(data.pricing);
+      setPricingSuccessMsg("Pricing configuration saved! Live checkout and mobile money will now charge these updated amounts.");
+      setTimeout(() => setPricingSuccessMsg(""), 6000);
+    } catch (err: any) {
+      setPricingErrorMsg(err.message || "Could not save pricing.");
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
+  const handleResetPricing = async () => {
+    if (!confirm("Are you sure you want to reset all rates back to platform defaults?")) {
+      return;
+    }
+    try {
+      setPricingSaving(true);
+      setPricingSuccessMsg("");
+      setPricingErrorMsg("");
+
+      const res = await fetch("/api/admin/pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset: true }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.pricing) {
+        setPricing(data.pricing);
+        setPricingSuccessMsg("Reset all rates back to platform defaults.");
+        setTimeout(() => setPricingSuccessMsg(""), 5000);
+      }
+    } catch (err: any) {
+      setPricingErrorMsg(err.message || "Failed to reset pricing.");
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -64,6 +156,7 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     fetchTransactions();
+    fetchPricing();
   }, [statusFilter, providerFilter]);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
@@ -182,6 +275,237 @@ export default function AdminPaymentsPage() {
             <span className="text-[11px] text-slate-400 block mt-1">Transactions in database</span>
           </div>
         </div>
+      </div>
+
+      {/* SERVICE RATES & PAYMENT PLANS CONFIGURATION PANEL */}
+      <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+              <Sliders className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold font-heading text-white tracking-tight">Active Service Rates & Payment Plans</h2>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 flex items-center gap-1">
+                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live On Checkout
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Configure live fees charged to students across Tanzania for document generation, exports, and subscriptions. Changes apply instantly.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pricingSaving || pricingLoading}
+              onClick={handleResetPricing}
+              className="border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 text-xs h-9"
+            >
+              <RotateCcw className="size-3.5 mr-1.5" /> Reset Defaults
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={pricingSaving || pricingLoading}
+              onClick={handleSavePricing}
+              className="bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs h-9 px-4 shadow-md shadow-teal-900/30"
+            >
+              {pricingSaving ? (
+                <>
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" /> Saving Rates...
+                </>
+              ) : (
+                <>
+                  <Save className="size-3.5 mr-1.5" /> Save Pricing Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Messages */}
+        {pricingSuccessMsg && (
+          <div className="mt-4 p-3 rounded-lg bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+            <span>{pricingSuccessMsg}</span>
+          </div>
+        )}
+
+        {pricingErrorMsg && (
+          <div className="mt-4 p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="size-4 shrink-0 text-red-400" />
+            <span>{pricingErrorMsg}</span>
+          </div>
+        )}
+
+        {/* Pricing Inputs Grid */}
+        <form onSubmit={handleSavePricing} className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* 1. Single Report Export Fee (The Primary User Request) */}
+            <div className="bg-slate-950/80 border border-teal-500/30 rounded-xl p-4 relative group hover:border-teal-500/60 transition-all shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-teal-400 flex items-center gap-1.5">
+                  <FileText className="size-3.5 text-teal-400" /> Single Report Export Fee
+                </span>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
+                  Primary
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 min-h-[32px] leading-relaxed">
+                Fee charged to unlock publication-ready PDF/Word download & full report copying.
+              </p>
+              
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={pricing.singleDocumentExportTzs}
+                    onChange={(e) => setPricing({ ...pricing, singleDocumentExportTzs: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold focus:outline-none"
+                    placeholder="e.g. 10000"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold font-mono">TZS</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Live Checkout:</span>
+                  <span className="font-bold font-mono text-teal-300">
+                    {new Intl.NumberFormat("en-TZ").format(pricing.singleDocumentExportTzs)} TZS
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Student Essential (Monthly) */}
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 relative hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-200">
+                  Student Essential (Monthly)
+                </span>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
+                  Tier
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 min-h-[32px] leading-relaxed">
+                Monthly student plan with 15 projects and 9 AI academic writing tools.
+              </p>
+              
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={pricing.studentMonthlyTzs}
+                    onChange={(e) => setPricing({ ...pricing, studentMonthlyTzs: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold focus:outline-none"
+                    placeholder="e.g. 9900"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold font-mono">TZS</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Live Rate:</span>
+                  <span className="font-bold font-mono text-slate-300">
+                    {new Intl.NumberFormat("en-TZ").format(pricing.studentMonthlyTzs)} TZS
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Research Pro (Monthly) */}
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 relative hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-200">
+                  Research Pro (Monthly)
+                </span>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
+                  Tier
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 min-h-[32px] leading-relaxed">
+                Unlimited projects, dissertation lifecycle engine, and premium citations.
+              </p>
+              
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={pricing.proMonthlyTzs}
+                    onChange={(e) => setPricing({ ...pricing, proMonthlyTzs: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold focus:outline-none"
+                    placeholder="e.g. 24900"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold font-mono">TZS</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Live Rate:</span>
+                  <span className="font-bold font-mono text-slate-300">
+                    {new Intl.NumberFormat("en-TZ").format(pricing.proMonthlyTzs)} TZS
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. University License (Yearly) */}
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 relative hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-200">
+                  University License (Yearly)
+                </span>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
+                  Annual
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 min-h-[32px] leading-relaxed">
+                Institutional department-wide access with custom Tanzanian university branding.
+              </p>
+              
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={pricing.institutionalYearlyTzs}
+                    onChange={(e) => setPricing({ ...pricing, institutionalYearlyTzs: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold focus:outline-none"
+                    placeholder="e.g. 450000"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold font-mono">TZS</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Live Rate:</span>
+                  <span className="font-bold font-mono text-slate-300">
+                    {new Intl.NumberFormat("en-TZ").format(pricing.institutionalYearlyTzs)} TZS
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-800/80 text-[11px] text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-teal-400" />
+              Tanzanian Mobile Money carriers (Vodacom M-Pesa, Tigo Pesa, Airtel Money, Halopesa) and CRDB/NMB cards bill these exact amounts.
+            </span>
+            <span>
+              Last updated: {pricing.lastUpdatedAt ? new Date(pricing.lastUpdatedAt).toLocaleString() : "System Defaults"}
+            </span>
+          </div>
+        </form>
       </div>
 
       {/* Filter and Search Bar */}

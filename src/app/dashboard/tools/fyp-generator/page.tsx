@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import { PreFlightReviewModal } from "@/components/report-engine/PreFlightReviewModal";
 import {
   getUniversitiesCatalog,
   getUniversityByShortName,
@@ -85,6 +86,13 @@ export default function FYPGeneratorPage() {
   const [generatedReport, setGeneratedReport] = useState("");
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // Pre-Flight Layered Requirements State
+  const [compiledSpec, setCompiledSpec] = useState<any>(null);
+  const [compiledCalculations, setCompiledCalculations] = useState<any[]>([]);
+  const [compiledDiagrams, setCompiledDiagrams] = useState<any[]>([]);
+  const [auditReport, setAuditReport] = useState<any>(null);
+  const [isPreFlightModalOpen, setIsPreFlightModalOpen] = useState(false);
 
   // Read incoming parameters from Topic Assistant
   useEffect(() => {
@@ -221,32 +229,39 @@ export default function FYPGeneratorPage() {
     }
     setStepError("");
 
-    // Request Blueprint from Orchestrator
+    // Request Layered Requirements Specification from Resolver
     try {
-      const res = await fetch("/api/v1/generate", {
+      const res = await fetch("/api/v1/requirements/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actionType: "CREATE_PLAN",
-          institution: university,
-          targetPages: parseInt(targetPages) || 15,
-          assignment: {
-            title,
-            reportType: "FYP",
-            institution: university,
-            faculty,
-            programme: isCustomCourse ? customCourse : programme,
-            targetPages: parseInt(targetPages) || 15,
-            citationStyle
-          }
+          universityId: selectedUniShortName || "udsm",
+          programmeId: isCustomCourse ? customCourse : selectedCourseId || "coict-cs",
+          specialization: faculty,
+          reportType: "FYP",
+          reportTitle: title,
+          studentName,
+          regNumber,
+          assignmentInstructions: `Problem: ${problemStatement}. Objectives: ${objectives}. Methodology: ${methodology}`,
+          requestedCitationStyle: citationStyle,
+          requestedWordBudget: (parseInt(targetPages) || 15) * 350
         })
       });
       const data = await res.json();
-      if (data.success && data.plan?.sections) {
-        setBlueprintSections(data.plan.sections);
+      if (data.success && data.specification) {
+        setCompiledSpec(data.specification);
+        setCompiledCalculations(data.compiledCalculations || []);
+        setCompiledDiagrams(data.compiledDiagrams || []);
+        if (data.specification.sections) {
+          setBlueprintSections(data.specification.sections);
+        }
+        if (data.specification.formatting?.citationStyle) {
+          setCitationStyle(data.specification.formatting.citationStyle);
+        }
+        setIsPreFlightModalOpen(true);
       }
     } catch (e) {
-      console.warn("Error fetching FYP plan:", e);
+      console.warn("Error resolving requirements:", e);
     }
 
     setStep(4);
@@ -254,6 +269,7 @@ export default function FYPGeneratorPage() {
 
   // SEQUENTIAL MULTI-PASS GENERATION
   const handleStartSequentialGeneration = async () => {
+    setIsPreFlightModalOpen(false);
     setIsGenerating(true);
     setStep(5);
     setGeneratedReport("");
@@ -346,6 +362,9 @@ export default function FYPGeneratorPage() {
             wordBudget: currentSec.wordBudget,
             promptInstructions: currentSec.promptInstructions,
             evidenceData: evidencePayload,
+            calculatedResults: compiledCalculations,
+            diagramSpecs: compiledDiagrams,
+            specification: compiledSpec,
             formattingRules: { citationStyle }
           })
         });
@@ -358,6 +377,28 @@ export default function FYPGeneratorPage() {
         console.warn(`Chapter ${i + 1} drafting notice:`, err);
         fullCompiledReport += `\n\n## ${currentSec.title}\n\n### ${currentSec.subHeadings[0] || "Overview"}\nResearch analysis developed adhering to ${university} criteria.\n`;
         setGeneratedReport(fullCompiledReport);
+      }
+    }
+
+    // Run 7-Tier Institutional Compliance Audit
+    if (compiledSpec) {
+      try {
+        const auditRes = await fetch("/api/v1/requirements/audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reportText: fullCompiledReport,
+            specification: compiledSpec,
+            calculations: compiledCalculations,
+            diagrams: compiledDiagrams
+          })
+        });
+        const auditData = await auditRes.json();
+        if (auditData.success && auditData.auditReport) {
+          setAuditReport(auditData.auditReport);
+        }
+      } catch (auditErr) {
+        console.warn("Compliance audit execution warning:", auditErr);
       }
     }
 
@@ -817,13 +858,38 @@ export default function FYPGeneratorPage() {
             ))}
           </div>
 
+          {/* Pre-Flight Verification Banner */}
+          {compiledSpec && (
+            <div className="p-4 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 font-bold shrink-0">
+                  <Check className="size-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-foreground">Tier 1–6 Requirements Precedence Verified</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Citation: <strong>{compiledSpec.formatting?.citationStyle}</strong> • {compiledCalculations.length} deterministic formulas • {compiledDiagrams.length} structured diagrams ready.
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsPreFlightModalOpen(true)} className="border-teal-300 text-teal-800 dark:text-teal-200 shrink-0">
+                Review Pre-Flight Spec
+              </Button>
+            </div>
+          )}
+
           <div className="flex justify-between pt-4">
             <Button variant="outline" onClick={() => setStep(3)}>
               Back
             </Button>
-            <Button onClick={handleStartSequentialGeneration} className="px-8 gap-2 bg-purple-600 hover:bg-purple-500 text-white shadow-lg">
-              <Sparkles className="size-4" /> Start Multi-Pass Generation
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setIsPreFlightModalOpen(true)} className="border-purple-300 text-purple-700 dark:text-purple-300">
+                Inspect Specification
+              </Button>
+              <Button onClick={handleStartSequentialGeneration} className="px-8 gap-2 bg-purple-600 hover:bg-purple-500 text-white shadow-lg">
+                <Sparkles className="size-4" /> Start Multi-Pass Generation
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -888,6 +954,41 @@ export default function FYPGeneratorPage() {
             </div>
           </div>
 
+          {/* COMPLIANCE AUDIT SCORECARD BANNER */}
+          {auditReport && (
+            <div className="p-5 rounded-3xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/50 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in-50">
+              <div className="flex items-center gap-3.5">
+                <div className={`size-12 rounded-2xl flex items-center justify-center font-bold text-base shadow-sm border ${
+                  auditReport.overallScore >= 80
+                    ? "bg-emerald-600 text-white border-emerald-500"
+                    : "bg-amber-600 text-white border-amber-500"
+                }`}>
+                  {auditReport.overallScore}%
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                    7-Tier Institutional Compliance Audit Verified
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
+                      TCU Standard
+                    </span>
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {auditReport.isCompliant ? "Fully compliant with university thesis requirements." : "Non-critical formatting recommendations available."}
+                    {auditReport.piiViolationsFound > 0 && ` • Sanitized ${auditReport.piiViolationsFound} PII tokens.`}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPreFlightModalOpen(true)}
+                className="border-teal-300 text-teal-800 dark:text-teal-200 hover:bg-teal-100 dark:hover:bg-teal-900/40 shrink-0 font-semibold"
+              >
+                View 7-Stage Audit
+              </Button>
+            </div>
+          )}
+
           {/* DOCUMENT VIEWER */}
           <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-border shadow-sm font-sans leading-relaxed">
             <div className="flex items-center justify-between border-b pb-4 mb-6">
@@ -916,6 +1017,18 @@ export default function FYPGeneratorPage() {
           </div>
         </div>
       )}
+
+      {/* PRE-FLIGHT LAYERED REQUIREMENTS MODAL */}
+      <PreFlightReviewModal
+        isOpen={isPreFlightModalOpen}
+        onClose={() => setIsPreFlightModalOpen(false)}
+        specification={compiledSpec}
+        compiledCalculations={compiledCalculations}
+        compiledDiagrams={compiledDiagrams}
+        auditReport={auditReport}
+        onConfirm={handleStartSequentialGeneration}
+        isGenerating={isGenerating}
+      />
     </div>
   );
 }

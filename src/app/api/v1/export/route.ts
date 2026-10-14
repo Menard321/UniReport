@@ -32,11 +32,15 @@ export async function POST(req: Request) {
     const isAuthorized = isUserPro || isDocumentPaid;
 
     if (!isAuthorized) {
+      const { getSystemPricing } = await import("@/lib/pricing-service");
+      const pricing = await getSystemPricing();
+      const formattedPrice = new Intl.NumberFormat("en-TZ").format(pricing.singleDocumentExportTzs);
+
       return NextResponse.json(
         {
-          error: "Payment Required: Complete mobile payment (TZS 5,000) or upgrade to PRO to download this document.",
+          error: `Payment Required: Complete mobile payment (TZS ${formattedPrice}) or upgrade to PRO to download this document.`,
           requiresPayment: true,
-          priceTzs: 5000,
+          priceTzs: pricing.singleDocumentExportTzs,
           documentId: documentRecord?.id || null
         },
         { status: 402 }

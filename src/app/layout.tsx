@@ -15,6 +15,11 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: "UniReportTZ | Academic Reports, Built Around Your University",
   description: "AI-powered academic research, reporting, writing assistance, and data analysis tailored for modern Tanzanian and global academic standards.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

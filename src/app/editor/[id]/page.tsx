@@ -67,6 +67,19 @@ export default function DocumentEditorPage() {
   const [selectedBank, setSelectedBank] = useState("CRDB Bank");
   const [bankReference, setBankReference] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [feeTzs, setFeeTzs] = useState(5000);
+
+  // Fetch active system pricing
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.pricing?.singleDocumentExportTzs) {
+          setFeeTzs(d.pricing.singleDocumentExportTzs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // 1. Fetch document on mount
   useEffect(() => {
@@ -599,7 +612,7 @@ export default function DocumentEditorPage() {
               </div>
               <div>
                 <h3 className="font-bold text-base">Unlock Official PDF Download</h3>
-                <p className="text-xs text-muted-foreground">TZS 5,000 one-time export fee</p>
+                <p className="text-xs text-muted-foreground">TZS {new Intl.NumberFormat("en-TZ").format(feeTzs)} one-time export fee</p>
               </div>
             </div>
 
@@ -707,7 +720,7 @@ export default function DocumentEditorPage() {
                 </>
               ) : (
                 <>
-                  <Check className="size-4" /> Pay TZS 5,000 & Download PDF
+                  <Check className="size-4" /> Pay TZS {new Intl.NumberFormat("en-TZ").format(feeTzs)} & Download PDF
                 </>
               )}
             </Button>

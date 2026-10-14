@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
@@ -22,7 +23,6 @@ import {
   X,
   Search,
   ChevronRight,
-  BookOpenText,
   Bell,
   Sparkles
 } from "lucide-react";
@@ -136,8 +136,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800/80 bg-slate-950">
           <Link href="/admin" className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-teal-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <BookOpenText className="size-5" />
+            <div className="relative size-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+              <Image
+                src="/logo.png"
+                alt="UniReportTZ Logo"
+                width={36}
+                height={36}
+                className="object-contain"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-bold font-heading text-sm text-white tracking-tight flex items-center gap-1.5">

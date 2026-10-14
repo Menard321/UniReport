@@ -35,12 +35,16 @@ export async function POST(req: Request) {
         ? `TZ-CARD-${last4}-${Date.now().toString().slice(-4)}`
         : `TZ-DOC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const { getSystemPricing } = await import("@/lib/pricing-service");
+    const pricing = await getSystemPricing();
+    const chargeAmount = pricing.singleDocumentExportTzs;
+
     // 1. Create live PaymentTransaction record
     const transaction = await db.paymentTransaction.create({
       data: {
         userId: session.userId as string,
         reference,
-        amount: 5000,
+        amount: chargeAmount,
         currency: "TZS",
         provider: provider as any,
         tier: "STUDENT" as any,
@@ -49,6 +53,7 @@ export async function POST(req: Request) {
         metadata: JSON.stringify({ 
           documentId, 
           paymentMethod,
+          amountTzs: chargeAmount,
           cardholderName: cardholderName || null,
           cardLast4: last4 || null,
           cardBrand: cardBrand || null,
@@ -81,7 +86,7 @@ export async function POST(req: Request) {
       data: {
         userId: session.userId as string,
         action: "DOCUMENT_UNLOCK_PAYMENT",
-        metadata: JSON.stringify({ documentId, reference, paymentMethod, amountTzs: 5000 })
+        metadata: JSON.stringify({ documentId, reference, paymentMethod, amountTzs: chargeAmount })
       }
     });
 

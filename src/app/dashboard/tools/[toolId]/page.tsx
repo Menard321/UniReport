@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -75,6 +75,18 @@ export default function ToolPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"pdf" | "doc">("pdf");
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [feeTzs, setFeeTzs] = useState(5000);
+
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.pricing?.singleDocumentExportTzs) {
+          setFeeTzs(d.pricing.singleDocumentExportTzs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (!tool) {
     return (
@@ -350,7 +362,7 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
               </div>
               <h3 className="text-xl font-bold font-heading">Unlock Tool Output & Exports</h3>
               <p className="text-xs text-muted-foreground">
-                Pay TZS 5,000 via <strong>Mobile Money</strong> or <strong>Bank Card</strong> to download publication-ready <strong>PDF</strong> and unlock <strong>Clipboard Copying</strong>.
+                Pay TZS {new Intl.NumberFormat("en-TZ").format(feeTzs)} via <strong>Mobile Money</strong> or <strong>Bank Card</strong> to download publication-ready <strong>PDF</strong> and unlock <strong>Clipboard Copying</strong>.
               </p>
             </div>
 
@@ -365,7 +377,7 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
               </div>
               <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-sm pt-1 border-t">
                 <span>Total Amount:</span>
-                <span>TZS 5,000</span>
+                <span>TZS {new Intl.NumberFormat("en-TZ").format(feeTzs)}</span>
               </div>
             </div>
 

@@ -1,16 +1,24 @@
 import Link from "next/link";
-import { BookOpenText } from "lucide-react";
+import Image from "next/image";
 
 export function Footer() {
   return (
-    <footer className="border-t bg-muted/40 text-muted-foreground pt-12 pb-8 mt-auto">
-      <div className="container mx-auto px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
+    <footer className="border-t bg-muted/40 text-muted-foreground pt-12 pb-8 mt-auto" suppressHydrationWarning>
+      <div className="container mx-auto px-4 md:px-6" suppressHydrationWarning>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12" suppressHydrationWarning>
           
-          <div className="col-span-1 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <BookOpenText className="size-5 text-primary" />
-              <span className="text-lg font-bold font-heading tracking-tight text-foreground">
+          <div className="col-span-1 md:col-span-1" suppressHydrationWarning>
+            <Link href="/" className="flex items-center gap-2.5 mb-4" suppressHydrationWarning>
+              <div className="relative size-8 rounded-lg overflow-hidden flex items-center justify-center" suppressHydrationWarning>
+                <Image
+                  src="/logo.png"
+                  alt="UniReportTZ Logo"
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
+              <span className="text-lg font-bold font-heading tracking-tight text-foreground" suppressHydrationWarning>
                 UniReportTZ
               </span>
             </Link>

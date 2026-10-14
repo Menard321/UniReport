@@ -417,3 +417,33 @@ export function analyzeAssignmentAndPlan(input: AssignmentInput): ReportBlueprin
     sections
   };
 }
+
+export function getReportBlueprint(reportType: string): {
+  defaultTotalWords: number;
+  chapters: Array<{
+    chapterNumber: number;
+    title: string;
+    description: string;
+    defaultWordBudget: number;
+    subHeadings: string[];
+  }>;
+} {
+  const normalizedType = (reportType || "FYP").toUpperCase() as any;
+  const plan = analyzeAssignmentAndPlan({
+    title: "Academic Report",
+    reportType: normalizedType,
+    institution: "Tanzanian Higher Learning Institution",
+    targetPages: 10,
+  });
+
+  return {
+    defaultTotalWords: plan.totalWordTarget,
+    chapters: plan.sections.map((sec) => ({
+      chapterNumber: sec.chapterNumber,
+      title: sec.title,
+      description: sec.promptInstructions,
+      defaultWordBudget: sec.wordBudget,
+      subHeadings: sec.subHeadings,
+    })),
+  };
+}

@@ -4,6 +4,7 @@ import { google } from "@ai-sdk/google";
 import { analyzeAssignmentAndPlan } from "@/lib/report-engine/orchestrator";
 import { QualityAssurancePipeline } from "@/lib/report-engine/quality-assurance";
 import { UniversityTemplateService } from "@/lib/services/university-template-service";
+import { ComplianceAuditor } from "@/lib/report-engine/compliance-auditor";
 
 export async function POST(req: Request) {
   try {
@@ -90,6 +91,14 @@ export async function POST(req: Request) {
 - Key Assignment Questions: ${evidenceData.questions || "Theoretical and analytical inquiry prompts"}
 - Prescribed Literature Themes: ${evidenceData.literatureThemes || "Peer-reviewed literature and scholarly frameworks"}
 - Grading Rubric Focus: ${evidenceData.rubricCriteria || "Critical argumentation, synthesis, and evidence-based recommendations"}`;
+      } else if (evidenceData.reportType === "CLINICAL_LOG" || evidenceData.clinicalSetting || evidenceData.ward) {
+        evidenceContext = `VERIFIED HEALTH SCIENCES & CLINICAL LEARNING EVIDENCE:
+- Clinical Setting / Ward: ${evidenceData.clinicalSetting || evidenceData.ward || "Hospital Department"}
+- Core Learning Objectives: ${evidenceData.learningObjectives || "Clinical diagnostic observation and management"}
+- Supervised Procedures: ${evidenceData.procedures || "Standard clinical care protocols performed under direct supervision"}
+- Acquired Competencies: ${evidenceData.competencies || "Clinical evaluation and patient communication"}
+- Reflective Insights: ${evidenceData.reflection || "Critical evaluation of clinical practice against theoretical standards"}
+- ETHICAL NOTICE: All case descriptions are strictly de-identified (Zero PII).`;
       } else if (evidenceData.reportType === "FYP" || evidenceData.problemStatement || evidenceData.objectives) {
         evidenceContext = `VERIFIED FINAL YEAR PROJECT (FYP) & DISSERTATION EVIDENCE:
 - Project Title: ${evidenceData.title || assignment?.title || "Academic Final Year Project"}
@@ -112,16 +121,32 @@ export async function POST(req: Request) {
       }
     }
 
+    // Include calculated mathematical outputs if available
+    let calculationContext = "";
+    if (body.calculatedResults && Array.isArray(body.calculatedResults) && body.calculatedResults.length > 0) {
+      calculationContext = `\nDETERMINISTIC CALCULATION ENGINE VERIFIED OUTPUTS (INTEGRATE INTO DISCUSSION):
+${body.calculatedResults.map((c: any) => `- ${c.formulaName}: Result = ${c.output?.formatted || c.output?.value} (Formula: ${c.latexEquation || c.formulaCode}). Assumptions: ${(c.assumptions || []).join("; ")}`).join("\n")}`;
+    }
+
+    // Include structured diagram specifications if available
+    let diagramContext = "";
+    if (body.diagramSpecs && Array.isArray(body.diagramSpecs) && body.diagramSpecs.length > 0) {
+      diagramContext = `\nSTRUCTURED DIAGRAM SPECIFICATIONS (INCLUDE AND DISCUSS IN THE CHAPTER TEXT):
+${body.diagramSpecs.map((d: any) => `\`\`\`mermaid\n${d.sourceDefinition}\n\`\`\`\nCaption: ${d.caption || d.title}`).join("\n\n")}`;
+    }
+
     const systemInstruction = `You are an authoritative Tanzanian university academic supervisor and evaluator at ${targetInstitution}.
 Your duty is to produce an EXHAUSTIVE, publication-grade academic report section adhering to official guidelines and TCU academic standards.
 
-CRITICAL INTEGRITY INSTRUCTIONS:
+CRITICAL INTEGRITY & DISCIPLINE INSTRUCTIONS:
 1. Preserve all authentic student evidence, parameters, experimental data, host organization details, supervisor roles, and technical tools. Under NO circumstances fabricate external organizations, fake companies, or hallucinated findings.
-2. Structure the output into detailed, well-developed academic paragraphs under the specified sub-headings.
-3. STRICT PROHIBITION ON SUPERFICIAL SUMMARIES: Do NOT write high-level bullet summaries. Write rigorous, analytical, comprehensive paragraphs with deep theoretical and practical context.
-4. Target length: approximately ${budgetWords} words of rigorous prose.`;
+2. If mathematical calculation results are provided, weave the EXACT verified numbers into your academic prose and discussion. DO NOT recalculate or invent different numbers.
+3. If structured Mermaid diagrams are provided, include the exact Mermaid diagram code in the appropriate subsection and discuss its architectural/procedural significance in detail.
+4. Structure the output into detailed, well-developed academic paragraphs under the specified sub-headings.
+5. STRICT PROHIBITION ON SUPERFICIAL SUMMARIES: Do NOT write high-level bullet summaries. Write rigorous, analytical, comprehensive paragraphs with deep theoretical and practical context.
+6. Target length: approximately ${budgetWords} words of rigorous prose.`;
 
-    const userPrompt = prompt || `${promptInstructions || `Draft Chapter: ${currentChapter}`}\n\n${subHeadingsText}\n\n${evidenceContext}\n\nEnsure strict adherence to ${targetInstitution} guidelines.`;
+    const userPrompt = prompt || `${promptInstructions || `Draft Chapter: ${currentChapter}`}\n\n${subHeadingsText}\n\n${evidenceContext}${calculationContext}${diagramContext}\n\nEnsure strict adherence to ${targetInstitution} guidelines.`;
 
     let generatedText = "";
     try {
@@ -149,12 +174,28 @@ CRITICAL INTEGRITY INSTRUCTIONS:
     // Run Stage A to H Quality Assurance Pipeline
     const qaReport = QualityAssurancePipeline.evaluateReport(generatedText, targetPages);
 
+    // Run 7-Tier Disciplinary Compliance Audit if specification is present
+    let complianceAudit = null;
+    if (body.specification) {
+      try {
+        complianceAudit = ComplianceAuditor.audit(
+          generatedText,
+          body.specification,
+          body.calculatedResults || [],
+          body.diagramSpecs || []
+        );
+      } catch (auditErr) {
+        console.warn("Compliance audit warning:", auditErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       result: {
         text: generatedText,
         wordCount: generatedText.split(/\s+/).filter(Boolean).length,
-        qaReport
+        qaReport,
+        complianceAudit
       }
     });
 

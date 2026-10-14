@@ -507,5 +507,22 @@ export class DocxCompilerEngine {
       printWindow.document.close();
     }
   }
+
+  static downloadDocxFile(options: DocxExportOptions, filename?: string): void {
+    if (typeof window === "undefined") return;
+    const wordHtml = this.compileToWordHtml(options);
+    const blob = new Blob(["\ufeff", wordHtml], {
+      type: "application/msword;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeTitle = (options.title || "academic-report").replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+    a.download = filename || `${safeTitle}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 

@@ -152,7 +152,7 @@ Conclude with a **Weekly Action Checklist** outlining the top 5 urgent deliverab
 
     // Connect to Google Gemini using the Vercel AI SDK
     const { text } = await generateText({
-      model: google("gemini-1.5-flash-latest"),
+      model: google("gemini-1.5-flash"),
       system: resolvedSystemPrompt || "You are a professional academic research assistant.",
       prompt: input,
       temperature: 0.25, // Academic rigor

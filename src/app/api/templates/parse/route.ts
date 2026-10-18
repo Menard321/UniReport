@@ -95,36 +95,37 @@ export async function POST(req: NextRequest) {
     }
 
     // If no distinct chapter headers were caught by regex, provide standard chapters structured around the custom upload
-    if (sections.length < 3) {
+    const isStandardFallback = sections.length < 3;
+    if (isStandardFallback) {
       sections.push(
         {
           id: "custom-ch1",
           title: "Chapter 1: Organization Overview & Placement Mandate",
-          description: `Generated according to guideline ${fileName}`,
+          description: `Extracted from guideline ${fileName}`,
           order: 1
         },
         {
           id: "custom-ch2",
           title: "Chapter 2: Technical Duties & Fieldwork Implementation",
-          description: `Generated according to guideline ${fileName}`,
+          description: `Extracted from guideline ${fileName}`,
           order: 2
         },
         {
           id: "custom-ch3",
           title: "Chapter 3: Industrial Challenges & Problem Solving",
-          description: `Generated according to guideline ${fileName}`,
+          description: `Extracted from guideline ${fileName}`,
           order: 3
         },
         {
           id: "custom-ch4",
           title: "Chapter 4: Skills Acquired & Curriculum Relevance",
-          description: `Generated according to guideline ${fileName}`,
+          description: `Extracted from guideline ${fileName}`,
           order: 4
         },
         {
           id: "custom-ch5",
           title: "Chapter 5: Conclusions & Actionable Recommendations",
-          description: `Generated according to guideline ${fileName}`,
+          description: `Extracted from guideline ${fileName}`,
           order: 5
         }
       );
@@ -135,6 +136,11 @@ export async function POST(req: NextRequest) {
       fileName,
       templateName: `Uploaded Template (${fileName.replace(/\.[^/.]+$/, "")})`,
       sections,
+      confidence: isStandardFallback ? "low" : "high",
+      isStandardFallback,
+      warningMessage: isStandardFallback
+        ? "Could not detect explicit chapter headings (e.g., 'Chapter 1', '1.0'). Standard TCU inter-university fieldwork chapters have been provided. You can customize them in Step 4."
+        : undefined,
       extractedSnippet: extractedText.slice(0, 500)
     });
   } catch (error) {

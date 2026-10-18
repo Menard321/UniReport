@@ -57,7 +57,7 @@ export class RequirementsResolver {
 
     if (univId.includes("must") || univId.includes("dit") || progId.includes("eng") || progId.includes("civil") || progId.includes("elec") || progId.includes("mech") || progId.includes("telecom")) {
       defaultCitation = "IEEE";
-    } else if (univId.includes("muhas") || progId.includes("med") || progId.includes("pharm") || progId.includes("nurs")) {
+    } else if (univId.includes("muhas") || univId.includes("hkmu") || univId.includes("kcmuco") || progId.includes("med") || progId.includes("pharm") || progId.includes("nurs")) {
       defaultCitation = "VANCOUVER";
     } else if (univId.includes("udsm")) {
       defaultCitation = (progId.includes("coet") || progId.includes("coict")) ? "IEEE" : "HARVARD";
@@ -224,7 +224,7 @@ export class RequirementsResolver {
     };
   }
 
-  private static resolveDisciplineDirectives(programmeId: string, reportType: string): DisciplinaryDirective {
+  public static resolveDisciplineDirectives(programmeId: string, reportType?: string): DisciplinaryDirective {
     const p = (programmeId || "").toLowerCase();
 
     // 1. Engineering

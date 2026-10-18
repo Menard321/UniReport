@@ -12,14 +12,26 @@ export interface CollegeItem {
   courses: CourseItem[];
 }
 
+export type InstitutionType = "UNIVERSITY" | "INSTITUTE" | "COLLEGE";
+
 export interface UniversityCatalogItem {
   id: string;
   name: string;
   shortName: string;
   slug: string;
   logoUrl: string;
+  /** True only when an official institutional template has been verified and is bundled. */
   hasOfficialTemplate: boolean;
   templateFileName?: string;
+  type: InstitutionType;
+  /** Display location, e.g. "Dar es Salaam, Tanzania". */
+  location: string;
+  /** Region used for search and filtering. */
+  region: string;
+  domain: string;
+  campuses: number;
+  /** Report formats this institution commonly requires. */
+  reportTypes: string[];
   colleges: CollegeItem[];
 }
 
@@ -30,6 +42,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "UDSM",
     slug: "udsm",
     logoUrl: "/logos/UDSM.jpeg",
+    type: "UNIVERSITY",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "udsm.ac.tz",
+    campuses: 4,
+    reportTypes: ["Final Year Project (FYP)", "Field Training (IPT)", "Postgraduate Dissertation"],
     hasOfficialTemplate: true,
     templateFileName: "UDSM.docx",
     colleges: [
@@ -168,6 +186,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "IFM",
     slug: "ifm",
     logoUrl: "/logos/IFM.jpeg",
+    type: "INSTITUTE",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "ifm.ac.tz",
+    campuses: 2,
+    reportTypes: ["Applied Research Project", "Field Practical Report"],
     hasOfficialTemplate: true,
     templateFileName: "IFM FIELD REPORT SAMPLE.pdf",
     colleges: [
@@ -218,6 +242,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "CBE",
     slug: "cbe",
     logoUrl: "/logos/CBE.png",
+    type: "COLLEGE",
+    location: "Dar es Salaam & Dodoma",
+    region: "Dar es Salaam",
+    domain: "cbe.ac.tz",
+    campuses: 4,
+    reportTypes: ["Business Research Project", "Field Attachment"],
     hasOfficialTemplate: true,
     templateFileName: "CBE FIELD REPORT FORMAT .pdf",
     colleges: [
@@ -273,6 +303,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "NIT",
     slug: "nit",
     logoUrl: "/logos/NIT.jpeg",
+    type: "INSTITUTE",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "nit.ac.tz",
+    campuses: 1,
+    reportTypes: ["Logistics & Engineering Project", "Industrial Training"],
     hasOfficialTemplate: true,
     templateFileName: "NIT FIELD REPORT.pdf",
     colleges: [
@@ -322,6 +358,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "ARU",
     slug: "aru",
     logoUrl: "/logos/ARDHI.jpeg",
+    type: "UNIVERSITY",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "aru.ac.tz",
+    campuses: 1,
+    reportTypes: ["Final Year Dissertation", "Industrial Training (IT)"],
     hasOfficialTemplate: true,
     templateFileName: "ARTHI IT REPORT 2_110443.pdf",
     colleges: [
@@ -374,6 +416,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "SUA",
     slug: "sua",
     logoUrl: "/logos/SUA.jpeg",
+    type: "UNIVERSITY",
+    location: "Morogoro, Tanzania",
+    region: "Morogoro",
+    domain: "sua.ac.tz",
+    campuses: 3,
+    reportTypes: ["Special Project", "Practical Training (PT)", "Dissertation"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -433,6 +481,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "UDOM",
     slug: "udom",
     logoUrl: "/logos/UDOM.png",
+    type: "UNIVERSITY",
+    location: "Dodoma, Tanzania",
+    region: "Dodoma",
+    domain: "udom.ac.tz",
+    campuses: 6,
+    reportTypes: ["Final Year Project", "Industrial Attachment", "Masters Thesis"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -496,6 +550,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "DIT",
     slug: "dit",
     logoUrl: "/logos/DIT.jpeg",
+    type: "INSTITUTE",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "dit.ac.tz",
+    campuses: 2,
+    reportTypes: ["Final Year Engineering Project", "Industrial Practical Training"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -527,6 +587,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "MUST",
     slug: "must",
     logoUrl: "/logos/MUST.jpeg",
+    type: "UNIVERSITY",
+    location: "Mbeya, Tanzania",
+    region: "Mbeya",
+    domain: "must.ac.tz",
+    campuses: 2,
+    reportTypes: ["Final Year Engineering Project", "IPT Report"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -566,6 +632,12 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     shortName: "MUHAS",
     slug: "muhas",
     logoUrl: "/logos/MUHAS.jpeg",
+    type: "UNIVERSITY",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "muhas.ac.tz",
+    campuses: 2,
+    reportTypes: ["Clinical Research Dissertation", "Public Health Field Report"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -608,7 +680,13 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     name: "Mzumbe University",
     shortName: "MU",
     slug: "mzumbe",
-    logoUrl: "/logos/UDSM.jpeg",
+    logoUrl: "/logos/MU.jpeg",
+    type: "UNIVERSITY",
+    location: "Morogoro, Tanzania",
+    region: "Morogoro",
+    domain: "mzumbe.ac.tz",
+    campuses: 3,
+    reportTypes: ["Business Research Project", "Field Attachment", "Postgraduate Dissertation"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -655,7 +733,13 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
     name: "Institute of Accountancy Arusha",
     shortName: "IAA",
     slug: "iaa",
-    logoUrl: "/logos/CBE.png",
+    logoUrl: "/logos/IAA.jpeg",
+    type: "INSTITUTE",
+    location: "Arusha, Tanzania",
+    region: "Arusha",
+    domain: "iaa.ac.tz",
+    campuses: 2,
+    reportTypes: ["Accounting Research Project", "Field Work Report"],
     hasOfficialTemplate: false,
     colleges: [
       {
@@ -676,6 +760,459 @@ export const TANZANIA_ACADEMIC_CATALOG: UniversityCatalogItem[] = [
           { id: "iaa-accounting", name: "Bachelor of Accountancy" },
           { id: "iaa-finance", name: "Bachelor of Banking and Finance" },
           { id: "iaa-procurement", name: "Bachelor of Procurement and Logistics Management" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "out",
+    name: "Open University of Tanzania",
+    shortName: "OUT",
+    slug: "out",
+    logoUrl: "/logos/OUT.jpeg",
+    type: "UNIVERSITY",
+    location: "Dar es Salaam & Nationwide Centers",
+    region: "Dar es Salaam",
+    domain: "out.ac.tz",
+    campuses: 30,
+    reportTypes: ["Dissertation Proposal", "Fieldwork Report", "Final Year Research"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "out-fstes",
+        name: "Faculty of Science, Technology and Environmental Studies",
+        shortName: "FSTES",
+        courses: [
+          { id: "out-cs-ict", name: "BSc in Information Communication Technology" },
+          { id: "out-data-sci", name: "BSc in Data Management and Analytics" },
+          { id: "out-env-sci", name: "BSc in Environmental Studies" },
+          { id: "out-sc-bio", name: "BSc General (Biological Sciences)" }
+        ]
+      },
+      {
+        id: "out-fbm",
+        name: "Faculty of Business Management",
+        shortName: "FBM",
+        courses: [
+          { id: "out-bba-acc", name: "Bachelor of Business Administration (Accounting)" },
+          { id: "out-bba-fin", name: "Bachelor of Business Administration (Finance)" },
+          { id: "out-bba-hrm", name: "Bachelor of Human Resource Management" },
+          { id: "out-proc-log", name: "Bachelor of Procurement and Supply Logistics" }
+        ]
+      },
+      {
+        id: "out-fed",
+        name: "Faculty of Education",
+        shortName: "FED",
+        courses: [
+          { id: "out-bed-arts", name: "Bachelor of Education (Arts)" },
+          { id: "out-bed-sc", name: "Bachelor of Education (Science)" },
+          { id: "out-bed-elem", name: "Bachelor of Education in Teacher Leadership" }
+        ]
+      },
+      {
+        id: "out-flw",
+        name: "Faculty of Law",
+        shortName: "FLW",
+        courses: [
+          { id: "out-law-llb", name: "Bachelor of Laws (LL.B)" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "suza",
+    name: "State University of Zanzibar",
+    shortName: "SUZA",
+    slug: "suza",
+    logoUrl: "/logos/SUZA.jpeg",
+    type: "UNIVERSITY",
+    location: "Tunguu, Zanzibar, Tanzania",
+    region: "Zanzibar",
+    domain: "suza.ac.tz",
+    campuses: 4,
+    reportTypes: ["Field Attachment Report", "Undergraduate Research Project", "Postgraduate Dissertation"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "suza-scit",
+        name: "School of Computing, Communication and Media Studies",
+        shortName: "SCCMS",
+        courses: [
+          { id: "suza-cs-it", name: "BSc in Computer Science" },
+          { id: "suza-it-sys", name: "BSc in Information Technology Application & Systems" },
+          { id: "suza-mass-comm", name: "Bachelor of Arts in Mass Communication" }
+        ]
+      },
+      {
+        id: "suza-shms",
+        name: "School of Health and Medical Sciences",
+        shortName: "SHMS",
+        courses: [
+          { id: "suza-med-doc", name: "Doctor of Medicine (MD)" },
+          { id: "suza-nurs-sci", name: "Bachelor of Science in Nursing" },
+          { id: "suza-pharm-tech", name: "Bachelor of Pharmacy (BPharm)" },
+          { id: "suza-env-health", name: "BSc in Environmental Health" }
+        ]
+      },
+      {
+        id: "suza-snss",
+        name: "School of Natural and Social Sciences",
+        shortName: "SNSS",
+        courses: [
+          { id: "suza-marine-sci", name: "BSc in Marine and Coastal Resources Management" },
+          { id: "suza-agric-hort", name: "BSc in Agriculture and Natural Resource Management" },
+          { id: "suza-tour-mgmt", name: "Bachelor in Tourism and Heritage Management" }
+        ]
+      },
+      {
+        id: "suza-soed",
+        name: "School of Education",
+        shortName: "SOE",
+        courses: [
+          { id: "suza-bed-sci", name: "Bachelor of Science with Education" },
+          { id: "suza-bed-arts", name: "Bachelor of Arts with Education" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tia",
+    name: "Tanzania Institute of Accountancy",
+    shortName: "TIA",
+    slug: "tia",
+    logoUrl: "/logos/TIA.png",
+    type: "INSTITUTE",
+    location: "Dar es Salaam, Mbeya, Mwanza, Singida",
+    region: "Dar es Salaam",
+    domain: "tia.ac.tz",
+    campuses: 6,
+    reportTypes: ["Field Practical Training Report (IPT)", "Applied Research Project"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "tia-acc-fin",
+        name: "Department of Accounting and Finance",
+        shortName: "DAF",
+        courses: [
+          { id: "tia-acc-prof", name: "Bachelor of Accountancy" },
+          { id: "tia-fin-bank", name: "Bachelor of Banking and Finance" },
+          { id: "tia-tax-admin", name: "Bachelor of Public Sector Accounting and Finance" }
+        ]
+      },
+      {
+        id: "tia-bms",
+        name: "Department of Business and Management Studies",
+        shortName: "DBMS",
+        courses: [
+          { id: "tia-proc-log", name: "Bachelor of Procurement and Logistics Management" },
+          { id: "tia-mkt-pr", name: "Bachelor of Marketing and Public Relations" },
+          { id: "tia-hrm-mgmt", name: "Bachelor of Human Resource Management" },
+          { id: "tia-biz-admin", name: "Bachelor of Business Administration" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "saut",
+    name: "St. Augustine University of Tanzania",
+    shortName: "SAUT",
+    slug: "saut",
+    logoUrl: "/logos/SAUT.png",
+    type: "UNIVERSITY",
+    location: "Mwanza, Tanzania",
+    region: "Mwanza",
+    domain: "saut.ac.tz",
+    campuses: 3,
+    reportTypes: ["Fieldwork Attachment", "Research Project", "Dissertation"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "saut-eng-tech",
+        name: "Faculty of Engineering and Technology",
+        shortName: "FET",
+        courses: [
+          { id: "saut-eng-civil", name: "Bachelor of Science in Civil Engineering" },
+          { id: "saut-eng-elec", name: "Bachelor of Science in Electrical Engineering" },
+          { id: "saut-eng-cs", name: "Bachelor of Science in Computer Science" }
+        ]
+      },
+      {
+        id: "saut-fba",
+        name: "Faculty of Business Administration",
+        shortName: "FBA",
+        courses: [
+          { id: "saut-biz-acc", name: "Bachelor of Business Administration (Accounting)" },
+          { id: "saut-biz-proc", name: "Bachelor of Procurement and Supply Chain Management" },
+          { id: "saut-biz-fin", name: "Bachelor of Business Administration (Banking & Finance)" }
+        ]
+      },
+      {
+        id: "saut-fssc",
+        name: "Faculty of Social Sciences and Communications",
+        shortName: "FSSC",
+        courses: [
+          { id: "saut-mass-comm", name: "Bachelor of Arts in Mass Communication" },
+          { id: "saut-pub-admin", name: "Bachelor of Public Administration" },
+          { id: "saut-sociology", name: "Bachelor of Arts in Sociology" }
+        ]
+      },
+      {
+        id: "saut-fol",
+        name: "Faculty of Law",
+        shortName: "FoL",
+        courses: [
+          { id: "saut-law-llb", name: "Bachelor of Laws (LL.B)" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "sjuit",
+    name: "St. Joseph University in Tanzania",
+    shortName: "SJUIT",
+    slug: "sjuit",
+    logoUrl: "/logos/SJUIT.jpeg",
+    type: "UNIVERSITY",
+    location: "Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "sjuit.ac.tz",
+    campuses: 2,
+    reportTypes: ["Industrial Practical Training (IPT)", "Capstone Engineering Design", "FYP"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "sjuit-sjcet",
+        name: "St. Joseph College of Engineering and Technology",
+        shortName: "SJCET",
+        courses: [
+          { id: "sjuit-eng-cs", name: "Bachelor of Engineering in Computer Science and Engineering" },
+          { id: "sjuit-eng-civil", name: "Bachelor of Engineering in Civil Engineering" },
+          { id: "sjuit-eng-mech", name: "Bachelor of Engineering in Mechanical Engineering" },
+          { id: "sjuit-eng-elec", name: "Bachelor of Engineering in Electrical and Electronics Engineering" },
+          { id: "sjuit-eng-telecom", name: "Bachelor of Engineering in Information and Communication Technology" }
+        ]
+      },
+      {
+        id: "sjuit-sjchas",
+        name: "St. Joseph College of Health and Allied Sciences",
+        shortName: "SJCHAS",
+        courses: [
+          { id: "sjuit-med-md", name: "Doctor of Medicine (MD)" },
+          { id: "sjuit-pharm-bpharm", name: "Bachelor of Pharmacy (BPharm)" },
+          { id: "sjuit-nurs-sci", name: "Bachelor of Science in Nursing" }
+        ]
+      },
+      {
+        id: "sjuit-mgmt",
+        name: "St. Joseph College of Management and Finance",
+        shortName: "SJCMF",
+        courses: [
+          { id: "sjuit-biz-bba", name: "Bachelor of Business Administration" },
+          { id: "sjuit-biz-commerce", name: "Bachelor of Commerce in Accounting & Finance" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tumaini",
+    name: "Tumaini University Makumira",
+    shortName: "TUMAINI",
+    slug: "tumaini",
+    logoUrl: "/logos/TUMAINI.jpeg",
+    type: "UNIVERSITY",
+    location: "Usa River, Arusha, Tanzania",
+    region: "Arusha",
+    domain: "makumira.ac.tz",
+    campuses: 2,
+    reportTypes: ["Field Attachment Report", "Legal Research Paper", "Postgraduate Dissertation"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "tuma-fol",
+        name: "Faculty of Law",
+        shortName: "FoL",
+        courses: [
+          { id: "tuma-law-llb", name: "Bachelor of Laws (LL.B)" },
+          { id: "tuma-law-llm", name: "Master of Laws in International Human Rights (LL.M)" }
+        ]
+      },
+      {
+        id: "tuma-fhss",
+        name: "Faculty of Humanities and Social Sciences",
+        shortName: "FHSS",
+        courses: [
+          { id: "tuma-edu-arts", name: "Bachelor of Arts with Education" },
+          { id: "tuma-counsel-psy", name: "Bachelor of Arts in Counselling Psychology" },
+          { id: "tuma-comm-dev", name: "Bachelor of Arts in Community Development" }
+        ]
+      },
+      {
+        id: "tuma-fbcs",
+        name: "Faculty of Business and Computer Studies",
+        shortName: "FBCS",
+        courses: [
+          { id: "tuma-biz-bba", name: "Bachelor of Business Administration" },
+          { id: "tuma-biz-acc", name: "Bachelor of Accounting and Finance" },
+          { id: "tuma-it-sys", name: "Bachelor of Science in Information Technology" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "uaut",
+    name: "United African University of Tanzania",
+    shortName: "UAUT",
+    slug: "uaut",
+    logoUrl: "/logos/UAUT.png",
+    type: "UNIVERSITY",
+    location: "Kigamboni, Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "uaut.ac.tz",
+    campuses: 1,
+    reportTypes: ["Practical Training Report (IPT)", "Engineering Capstone Project", "Business Dissertation"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "uaut-fet",
+        name: "Faculty of Engineering and Technology",
+        shortName: "FET",
+        courses: [
+          { id: "uaut-eng-cs", name: "Bachelor of Science in Computer Science" },
+          { id: "uaut-eng-civil", name: "Bachelor of Science in Civil Engineering" },
+          { id: "uaut-eng-elec", name: "Bachelor of Science in Electrical and Computer Engineering" }
+        ]
+      },
+      {
+        id: "uaut-fba",
+        name: "Faculty of Business Administration",
+        shortName: "FBA",
+        courses: [
+          { id: "uaut-biz-bba", name: "Bachelor of Business Administration (Accounting & Finance)" },
+          { id: "uaut-biz-intl", name: "Bachelor of International Business Management" },
+          { id: "uaut-biz-proc", name: "Bachelor of Procurement and Supply Management" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "hkmu",
+    name: "Hubert Kairuki Memorial University",
+    shortName: "HKMU",
+    slug: "hkmu",
+    logoUrl: "/logos/HKMU.jpeg",
+    type: "UNIVERSITY",
+    location: "Mikocheni, Dar es Salaam, Tanzania",
+    region: "Dar es Salaam",
+    domain: "hkmu.ac.tz",
+    campuses: 1,
+    reportTypes: ["Clinical Elective Report", "Medical Dissertation", "Public Health Research"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "hkmu-fom",
+        name: "Faculty of Medicine",
+        shortName: "FoM",
+        courses: [
+          { id: "hkmu-med-md", name: "Doctor of Medicine (MD)" },
+          { id: "hkmu-med-biomed", name: "BSc in Health Systems and Biomedical Research" }
+        ]
+      },
+      {
+        id: "hkmu-fon",
+        name: "Faculty of Nursing",
+        shortName: "FoN",
+        courses: [
+          { id: "hkmu-nurs-bnurs", name: "Bachelor of Science in Nursing (Pre-service & In-service)" },
+          { id: "hkmu-nurs-midwife", name: "Bachelor of Science in Midwifery" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "kcmuco",
+    name: "Kilimanjaro Christian Medical University College",
+    shortName: "KCMUCo",
+    slug: "kcmuco",
+    logoUrl: "/logos/KCMC.jpeg",
+    type: "COLLEGE",
+    location: "Moshi, Kilimanjaro, Tanzania",
+    region: "Kilimanjaro",
+    domain: "kcmuco.ac.tz",
+    campuses: 1,
+    reportTypes: ["Elective Clinical Report", "Medical Dissertation", "Biomedical Research"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "kcmuco-fom",
+        name: "Faculty of Medicine",
+        shortName: "FoM",
+        courses: [
+          { id: "kcmuco-med-md", name: "Doctor of Medicine (MD)" },
+          { id: "kcmuco-med-lab", name: "Bachelor of Science in Health Laboratory Sciences" }
+        ]
+      },
+      {
+        id: "kcmuco-frah",
+        name: "Faculty of Rehabilitation and Allied Health Sciences",
+        shortName: "FRAHS",
+        courses: [
+          { id: "kcmuco-physio", name: "Bachelor of Science in Physiotherapy" },
+          { id: "kcmuco-occup-ther", name: "Bachelor of Science in Occupational Therapy" },
+          { id: "kcmuco-optom", name: "Bachelor of Science in Optometry" }
+        ]
+      },
+      {
+        id: "kcmuco-fon",
+        name: "Faculty of Nursing",
+        shortName: "FoN",
+        courses: [
+          { id: "kcmuco-nurs-bnurs", name: "Bachelor of Science in Nursing" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "mocu",
+    name: "Moshi Co-operative University",
+    shortName: "MoCU",
+    slug: "mocu",
+    logoUrl: "/logos/MoCU.jpeg",
+    type: "UNIVERSITY",
+    location: "Moshi, Kilimanjaro, Tanzania",
+    region: "Kilimanjaro",
+    domain: "mocu.ac.tz",
+    campuses: 2,
+    reportTypes: ["Field Practical Attachment", "Co-operative Research Project", "Postgraduate Dissertation"],
+    hasOfficialTemplate: false,
+    colleges: [
+      {
+        id: "mocu-fccd",
+        name: "Faculty of Co-operative and Community Development",
+        shortName: "FCCD",
+        courses: [
+          { id: "mocu-coop-mgmt", name: "Bachelor of Co-operative Management and Accounting" },
+          { id: "mocu-comm-dev", name: "Bachelor of Arts in Community Development" },
+          { id: "mocu-microfin", name: "Bachelor of Science in Microfinance Management" }
+        ]
+      },
+      {
+        id: "mocu-fbis",
+        name: "Faculty of Business and Information Sciences",
+        shortName: "FBIS",
+        courses: [
+          { id: "mocu-acc-fin", name: "Bachelor of Accounting and Finance" },
+          { id: "mocu-proc-supply", name: "Bachelor of Procurement and Supply Management" },
+          { id: "mocu-biz-it", name: "Bachelor of Science in Business Information Technology" },
+          { id: "mocu-mkt-ent", name: "Bachelor of Marketing and Entrepreneurship" }
+        ]
+      },
+      {
+        id: "mocu-fol",
+        name: "Faculty of Law",
+        shortName: "FoL",
+        courses: [
+          { id: "mocu-law-llb", name: "Bachelor of Laws (LL.B)" }
         ]
       }
     ]

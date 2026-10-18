@@ -118,10 +118,6 @@ export default function LandingPage() {
           
           <div className="container px-4 md:px-6 relative z-10 mx-auto text-center max-w-4xl">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50/90 px-3.5 py-1 text-sm font-medium text-teal-800 mb-8 dark:border-teal-900/50 dark:bg-teal-900/40 dark:text-teal-300 shadow-sm backdrop-blur-sm">
-                <span className="flex h-2 w-2 rounded-full bg-teal-500 mr-2 animate-pulse"></span>
-                Now supporting major Universities across Tanzania
-              </div>
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl mb-6 font-heading text-primary dark:text-white">
                 Academic Reports, <br /> Built Around Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-teal-400 dark:from-teal-400 dark:to-teal-200">University.</span>
               </h1>

@@ -1,9 +1,10 @@
 {
-  "singleDocumentExportTzs": 15000,
+  "singleDocumentExportTzs": 5000,
+  "semesterPassTzs": 15000,
   "studentMonthlyTzs": 10000,
   "proMonthlyTzs": 25000,
   "institutionalYearlyTzs": 450000,
   "currency": "TZS",
-  "lastUpdatedBy": "cmv219vc80000swt5cnfg29px",
-  "lastUpdatedAt": "2026-10-14T05:20:18.513Z"
+  "lastUpdatedBy": "System Admin",
+  "lastUpdatedAt": "2026-10-18T12:00:00.000Z"
 }

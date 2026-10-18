@@ -26,12 +26,14 @@ import {
   Trash2,
   Info,
   Loader2,
-  Wand2
+  Wand2,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import { PreFlightReviewModal } from "@/components/report-engine/PreFlightReviewModal";
 import { FYPSuggestionModal } from "@/components/evidence/FYPSuggestionModal";
+import { DocumentExportPaywallModal } from "@/components/billing/DocumentExportPaywallModal";
 import {
   getUniversitiesCatalog,
   getUniversityByShortName,
@@ -110,6 +112,9 @@ export default function FYPGeneratorPage() {
   const [generatedReport, setGeneratedReport] = useState("");
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [selectedExportFormat, setSelectedExportFormat] = useState<"pdf" | "doc">("pdf");
 
   // Pre-Flight Layered Requirements State
   const [compiledSpec, setCompiledSpec] = useState<any>(null);
@@ -543,26 +548,69 @@ export default function FYPGeneratorPage() {
 
   const handleCopy = () => {
     if (!generatedReport) return;
+    if (!isUnlocked) {
+      setShowPaywallModal(true);
+      return;
+    }
     navigator.clipboard.writeText(generatedReport);
     setCopyFeedback(true);
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleExportDocx = () => {
-    DocxCompilerEngine.downloadDocxFile({
+  const handleExport = async (format: "pdf" | "doc" = "pdf") => {
+    if (!generatedReport) return;
+    setSelectedExportFormat(format);
+
+    const exportOptions = {
       title: title || "RESEARCH DISSERTATION",
       institution: university || "Tanzania Higher Education",
+      faculty,
+      programme: isCustomCourse ? customCourse : programme,
+      studentName: studentName || "STUDENT NAME",
+      registrationNumber: regNumber || "REGISTRATION NUMBER",
+      supervisorName: supervisor,
+      academicYear,
       content: generatedReport
-    });
+    };
+
+    if (isUnlocked) {
+      if (format === "doc") {
+        DocxCompilerEngine.downloadDocxFile(exportOptions);
+      } else {
+        DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/v1/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId: createdDocId,
+          format,
+          options: exportOptions
+        })
+      });
+
+      const data = await res.json();
+      if (res.status === 402 || data.requiresPayment) {
+        setShowPaywallModal(true);
+      } else if (data.success) {
+        setIsUnlocked(true);
+        if (format === "doc") {
+          DocxCompilerEngine.downloadDocxFile(exportOptions);
+        } else {
+          DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+        }
+      }
+    } catch (e) {
+      setShowPaywallModal(true);
+    }
   };
 
-  const handleExportPdf = () => {
-    DocxCompilerEngine.openPdfPrintWindow({
-      title: title || "RESEARCH DISSERTATION",
-      institution: university || "Tanzania Higher Education",
-      content: generatedReport
-    });
-  };
+  const handleExportDocx = () => handleExport("doc");
+  const handleExportPdf = () => handleExport("pdf");
 
   const totalWords = generatedReport.split(/\s+/).filter(Boolean).length;
   const estimatedPages = Math.max(1, Math.round(totalWords / 350));
@@ -1219,15 +1267,15 @@ export default function FYPGeneratorPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCopy}
                 disabled={isGenerating || !generatedReport}
-                className="gap-1.5"
+                className="gap-1.5 text-xs"
               >
-                <Copy className="size-4" />
+                {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <Copy className="size-3.5" />}
                 {copyFeedback ? "Copied!" : "Copy Text"}
               </Button>
               <Button
@@ -1235,19 +1283,23 @@ export default function FYPGeneratorPage() {
                 size="sm"
                 onClick={handleExportPdf}
                 disabled={isGenerating || !generatedReport}
-                className="gap-1.5"
+                className="gap-1.5 text-xs border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40"
               >
-                <Download className="size-4" />
+                {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <Download className="size-3.5" />}
                 Print / PDF
               </Button>
               <Button
                 size="sm"
                 onClick={handleExportDocx}
                 disabled={isGenerating || !generatedReport}
-                className="gap-1.5 bg-primary hover:bg-primary/90 text-white"
+                className={`gap-1.5 text-xs font-bold shadow-sm ${
+                  isUnlocked 
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                    : "bg-teal-600 hover:bg-teal-700 text-white"
+                }`}
               >
-                <Download className="size-4" />
-                Export Word (.docx)
+                {!isUnlocked ? <Lock className="size-3.5 text-amber-200" /> : <Download className="size-3.5" />}
+                {isUnlocked ? "Download Word (.docx)" : "Unlock & Download Word"}
               </Button>
             </div>
           </div>
@@ -1326,6 +1378,36 @@ export default function FYPGeneratorPage() {
         auditReport={auditReport}
         onConfirm={handleStartSequentialGeneration}
         isGenerating={isGenerating}
+      />
+
+      {/* DOCUMENT EXPORT PAYWALL MODAL */}
+      <DocumentExportPaywallModal
+        isOpen={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        documentTitle={title || "Research Proposal & Dissertation"}
+        documentId={createdDocId}
+        targetPages={targetPages}
+        university={university}
+        onSuccess={() => {
+          setIsUnlocked(true);
+          setShowPaywallModal(false);
+          const exportOptions = {
+            title: title || "RESEARCH DISSERTATION",
+            institution: university || "Tanzania Higher Education",
+            faculty,
+            programme: isCustomCourse ? customCourse : programme,
+            studentName: studentName || "STUDENT NAME",
+            registrationNumber: regNumber || "REGISTRATION NUMBER",
+            supervisorName: supervisor,
+            academicYear,
+            content: generatedReport
+          };
+          if (selectedExportFormat === "doc") {
+            DocxCompilerEngine.downloadDocxFile(exportOptions);
+          } else {
+            DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+          }
+        }}
       />
     </div>
   );

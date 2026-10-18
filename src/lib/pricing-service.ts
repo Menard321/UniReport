@@ -3,6 +3,7 @@ import path from "path";
 
 export interface SystemPricing {
   singleDocumentExportTzs: number;
+  semesterPassTzs: number;
   studentMonthlyTzs: number;
   proMonthlyTzs: number;
   institutionalYearlyTzs: number;
@@ -13,8 +14,9 @@ export interface SystemPricing {
 
 export const DEFAULT_PRICING: SystemPricing = {
   singleDocumentExportTzs: 5000,
-  studentMonthlyTzs: 9900,
-  proMonthlyTzs: 24900,
+  semesterPassTzs: 15000,
+  studentMonthlyTzs: 10000,
+  proMonthlyTzs: 25000,
   institutionalYearlyTzs: 450000,
   currency: "TZS",
   lastUpdatedBy: "System Default",
@@ -37,7 +39,7 @@ function ensureDataDir() {
  * Reads from disk cache or memory cache, falling back to defaults.
  */
 export async function getSystemPricing(): Promise<SystemPricing> {
-  if (memoryCache) {
+  if (memoryCache && process.env.NODE_ENV === "production") {
     return memoryCache;
   }
 
@@ -48,6 +50,7 @@ export async function getSystemPricing(): Promise<SystemPricing> {
       const parsed = JSON.parse(raw);
       memoryCache = {
         singleDocumentExportTzs: Number(parsed.singleDocumentExportTzs) || DEFAULT_PRICING.singleDocumentExportTzs,
+        semesterPassTzs: Number(parsed.semesterPassTzs) || DEFAULT_PRICING.semesterPassTzs,
         studentMonthlyTzs: Number(parsed.studentMonthlyTzs) || DEFAULT_PRICING.studentMonthlyTzs,
         proMonthlyTzs: Number(parsed.proMonthlyTzs) || DEFAULT_PRICING.proMonthlyTzs,
         institutionalYearlyTzs: Number(parsed.institutionalYearlyTzs) || DEFAULT_PRICING.institutionalYearlyTzs,
@@ -80,6 +83,10 @@ export async function updateSystemPricing(
       updates.singleDocumentExportTzs !== undefined && !isNaN(Number(updates.singleDocumentExportTzs))
         ? Math.max(0, Math.round(Number(updates.singleDocumentExportTzs)))
         : current.singleDocumentExportTzs,
+    semesterPassTzs:
+      updates.semesterPassTzs !== undefined && !isNaN(Number(updates.semesterPassTzs))
+        ? Math.max(0, Math.round(Number(updates.semesterPassTzs)))
+        : current.semesterPassTzs,
     studentMonthlyTzs:
       updates.studentMonthlyTzs !== undefined && !isNaN(Number(updates.studentMonthlyTzs))
         ? Math.max(0, Math.round(Number(updates.studentMonthlyTzs)))

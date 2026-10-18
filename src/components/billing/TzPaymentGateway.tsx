@@ -8,11 +8,21 @@ interface TzPaymentGatewayProps {
   amount: number;
   planName: string;
   planId?: string;
+  documentId?: string;
+  billingCycleLabel?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function TzPaymentGateway({ amount, planName, planId = "PRO", onSuccess, onCancel }: TzPaymentGatewayProps) {
+export function TzPaymentGateway({ 
+  amount, 
+  planName, 
+  planId = "PRO", 
+  documentId,
+  billingCycleLabel,
+  onSuccess, 
+  onCancel 
+}: TzPaymentGatewayProps) {
   // 2 Primary Payment Options
   const [method, setMethod] = useState<'mobile' | 'card'>('mobile');
   
@@ -139,6 +149,7 @@ export function TzPaymentGateway({ amount, planName, planId = "PRO", onSuccess, 
         body: JSON.stringify({
           amount,
           planId,
+          documentId,
           phone: method === 'mobile' ? phone : undefined,
           provider: method === 'mobile' 
             ? mobileProvider 
@@ -176,9 +187,11 @@ export function TzPaymentGateway({ amount, planName, planId = "PRO", onSuccess, 
         
         {/* Header */}
         <div className="p-6 border-b text-center bg-slate-50 dark:bg-slate-800/50">
-          <h2 className="text-xl font-bold font-heading mb-1 text-foreground">Upgrade to {planName}</h2>
+          <h2 className="text-xl font-bold font-heading mb-1 text-foreground">
+            {planId === 'STUDENT' && documentId ? "Unlock Document" : `Upgrade to ${planName}`}
+          </h2>
           <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-400">
-            {formattedAmount} <span className="text-sm font-normal text-muted-foreground">/ month</span>
+            {formattedAmount} <span className="text-sm font-normal text-muted-foreground">{billingCycleLabel || (planId === 'STUDENT' ? '/ document' : planId === 'PRO' ? '/ semester' : '/ month')}</span>
           </p>
 
           {/* Supported Channels in Checkout Modal */}

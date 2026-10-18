@@ -19,7 +19,8 @@ export async function POST(req: Request) {
       bankReference,
       cardholderName,
       last4,
-      cardBrand 
+      cardBrand,
+      documentId
     } = await req.json();
 
     if (!amount || !planId) {
@@ -48,6 +49,18 @@ export async function POST(req: Request) {
 
     // Execute atomic PostgreSQL mutation
     const result = await db.$transaction(async (tx: any) => {
+      // 0. If documentId is passed, mark that document as paid immediately
+      if (documentId) {
+        try {
+          await tx.document.update({
+            where: { id: documentId, userId: session.userId as string },
+            data: { isPaid: true }
+          });
+        } catch (docErr) {
+          console.warn("[BILLING_CHARGE] Document not found for isPaid flag update:", docErr);
+        }
+      }
+
       // 1. Record the Payment Transaction
       const transaction = await tx.paymentTransaction.create({
         data: {
@@ -61,6 +74,7 @@ export async function POST(req: Request) {
           phone: phone || null,
           metadata: JSON.stringify({
             upgradedAt: new Date().toISOString(),
+            documentId: documentId || null,
             channel: provider,
             bankName: bankName || null,
             bankReference: bankReference || null,

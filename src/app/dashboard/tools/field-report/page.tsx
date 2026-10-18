@@ -40,6 +40,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import { SuggestionModal } from "@/components/evidence/SuggestionModal";
+import { DocumentExportPaywallModal } from "@/components/billing/DocumentExportPaywallModal";
 import {
   TANZANIA_ACADEMIC_CATALOG,
   getUniversitiesCatalog,
@@ -145,7 +146,7 @@ export default function FieldReportGuidedPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<"pdf">("pdf");
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "doc">("pdf");
   const [copyFeedback, setCopyFeedback] = useState(false);
 
   // CURRENT SELECTED UNIVERSITY ITEM
@@ -580,24 +581,30 @@ Follow these strict writing style instructions:
     }
   };
 
-  const handleExport = async (format: "pdf" = "pdf") => {
+  const handleExport = async (format: "pdf" | "doc" = "pdf") => {
     if (!generatedReport) return;
-    setSelectedFormat("pdf");
+    setSelectedFormat(format);
+
+    const exportOptions = {
+      title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
+      institution: university,
+      faculty,
+      programme: isCustomCourse ? customCourse : programme,
+      studentName: studentName || "STUDENT NAME",
+      registrationNumber: regNumber || "REGISTRATION NUMBER",
+      yearOfStudy,
+      organization,
+      supervisorName: supervisor,
+      academicYear: resolvedAcademicYear || "2024/2025",
+      content: generatedReport
+    };
 
     if (isUnlocked) {
-      DocxCompilerEngine.openPdfPrintWindow({
-        title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
-        institution: university,
-        faculty,
-        programme: isCustomCourse ? customCourse : programme,
-        studentName: studentName || "STUDENT NAME",
-        registrationNumber: regNumber || "REGISTRATION NUMBER",
-        yearOfStudy,
-        organization,
-        supervisorName: supervisor,
-        academicYear: resolvedAcademicYear || "2024/2025",
-        content: generatedReport
-      });
+      if (format === "doc") {
+        DocxCompilerEngine.downloadDocxFile(exportOptions);
+      } else {
+        DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+      }
       return;
     }
 
@@ -607,9 +614,44 @@ Follow these strict writing style instructions:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          format: "pdf",
-          options: {
-            title: reportTitle || `Fieldwork Report - ${organization}`,
+          format,
+          options: exportOptions
+        })
+      });
+
+      const data = await res.json();
+      if (res.status === 402 || data.requiresPayment) {
+        setShowPaymentModal(true);
+      } else if (data.success) {
+        setIsUnlocked(true);
+        if (format === "doc") {
+          DocxCompilerEngine.downloadDocxFile(exportOptions);
+        } else {
+          DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+        }
+      }
+    } catch (e) {
+      setShowPaymentModal(true);
+    }
+  };
+
+
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* REUSABLE DOCUMENT EXPORT PAYWALL MODAL */}
+      <DocumentExportPaywallModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        documentTitle={reportTitle || `Fieldwork Report (${targetPages} Pages)`}
+        documentId={createdDocId}
+        targetPages={targetPages}
+        university={university}
+        onSuccess={() => {
+          setIsUnlocked(true);
+          setShowPaymentModal(false);
+          const exportOptions = {
+            title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
             institution: university,
             faculty,
             programme: isCustomCourse ? customCourse : programme,
@@ -620,306 +662,14 @@ Follow these strict writing style instructions:
             supervisorName: supervisor,
             academicYear: resolvedAcademicYear || "2024/2025",
             content: generatedReport
+          };
+          if (selectedFormat === "doc") {
+            DocxCompilerEngine.downloadDocxFile(exportOptions);
+          } else {
+            DocxCompilerEngine.openPdfPrintWindow(exportOptions);
           }
-        })
-      });
-
-      const data = await res.json();
-      if (res.status === 402 || data.requiresPayment) {
-        setShowPaymentModal(true);
-      } else if (data.success) {
-        setIsUnlocked(true);
-        DocxCompilerEngine.openPdfPrintWindow({
-          title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
-          institution: university,
-          faculty,
-          programme: isCustomCourse ? customCourse : programme,
-          studentName: studentName || "STUDENT NAME",
-          registrationNumber: regNumber || "REGISTRATION NUMBER",
-          yearOfStudy,
-          organization,
-          supervisorName: supervisor,
-          academicYear: resolvedAcademicYear || "2024/2025",
-          content: generatedReport
-        });
-      }
-    } catch (e) {
-      setShowPaymentModal(true);
-    }
-  };
-
-  const handleProcessPayment = async () => {
-    if (paymentMode === "mobile") {
-      if (!phoneNumber.match(/^(06|07)\d{8}$/)) {
-        alert("Please enter a valid Tanzanian phone number (e.g. 0627204980 / 0747461380)");
-        return;
-      }
-    } else {
-      if (showSimBankingFallback) {
-        if (!bankReference || bankReference.trim().length < 6) {
-          alert(`Please enter your valid ${selectedBank} deposit reference or mobile transaction code.`);
-          return;
-        }
-      } else {
-        if (!cardNumber || cardNumber.replace(/\s/g, "").length < 16) {
-          alert("Please enter a valid 16-digit card number");
-          return;
-        }
-        if (!cardName) {
-          alert("Please enter the name on your card");
-          return;
-        }
-      }
-    }
-
-    setIsProcessingPayment(true);
-    try {
-      const res = await fetch("/api/v1/export/pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documentId: createdDocId,
-          paymentMethod: paymentMode === "mobile" 
-            ? paymentProvider 
-            : showSimBankingFallback 
-              ? selectedBank 
-              : "Card",
-          phoneNumber: paymentMode === "mobile" ? phoneNumber : undefined,
-          bankName: paymentMode === "card" && showSimBankingFallback ? selectedBank : undefined,
-          bankReference: paymentMode === "card" && showSimBankingFallback ? bankReference : undefined,
-          cardholderName: paymentMode === "card" && !showSimBankingFallback ? cardName : undefined,
-          last4: paymentMode === "card" && !showSimBankingFallback ? cardNumber.replace(/\s/g, "").slice(-4) : undefined,
-          cardBrand: paymentMode === "card" && !showSimBankingFallback ? (cardNumber.startsWith("4") ? "Visa" : "Mastercard") : undefined
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setIsUnlocked(true);
-        setShowPaymentModal(false);
-
-        // Instantly execute PDF print/download
-        DocxCompilerEngine.openPdfPrintWindow({
-          title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
-          institution: university,
-          faculty,
-          programme: isCustomCourse ? customCourse : programme,
-          studentName: studentName || "STUDENT NAME",
-          registrationNumber: regNumber || "REGISTRATION NUMBER",
-          yearOfStudy,
-          organization,
-          supervisorName: supervisor,
-          academicYear: resolvedAcademicYear || "2024/2025",
-          content: generatedReport
-        });
-      } else {
-        alert(data.error || "Payment verification failed. Please try again.");
-      }
-    } catch (e) {
-      alert("Payment failed. Please try again.");
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* PAYMENT MODAL */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 relative">
-            <button
-              onClick={() => setShowPaymentModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="size-5" />
-            </button>
-
-            <div className="text-center space-y-1">
-              <div className="size-12 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-600 mx-auto flex items-center justify-center mb-2">
-                <Lock className="size-6" />
-              </div>
-              <h3 className="text-xl font-bold font-heading">Unlock Document & Exports</h3>
-              <p className="text-xs text-muted-foreground">
-                Pay TZS 5,000 via <strong>Mobile Money</strong> or <strong>Bank Card</strong> to download official <strong>PDF</strong> and unlock <strong>Clipboard Copying</strong>.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs space-y-1">
-              <div className="flex justify-between font-semibold">
-                <span>Document:</span>
-                <span className="truncate max-w-[200px]">{reportTitle || `Fieldwork Report (${targetPages} Pages)`}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Access:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">PDF Download + Copy Access</span>
-              </div>
-              <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-sm pt-1 border-t">
-                <span>Total Amount:</span>
-                <span>TZS 5,000</span>
-              </div>
-            </div>
-
-            {/* Mode Switcher */}
-            <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setPaymentMode("mobile")}
-                className={`py-2 rounded-lg transition ${
-                  paymentMode === "mobile"
-                    ? "bg-white dark:bg-slate-700 shadow-sm text-teal-700 dark:text-teal-300 font-bold"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Mobile Money
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMode("card")}
-                className={`py-2 rounded-lg transition ${
-                  paymentMode === "card"
-                    ? "bg-white dark:bg-slate-700 shadow-sm text-teal-700 dark:text-teal-300 font-bold"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Card / SimBanking
-              </button>
-            </div>
-
-            {paymentMode === "mobile" ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {["M-Pesa", "Tigo Pesa", "Airtel Money", "HaloPesa"].map((prov) => (
-                    <button
-                      key={prov}
-                      type="button"
-                      onClick={() => setPaymentProvider(prov)}
-                      className={`p-2.5 rounded-xl border text-center font-bold transition flex items-center justify-between ${
-                        paymentProvider === prov
-                          ? "border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 ring-2 ring-teal-500/20"
-                          : "border-slate-200 dark:border-slate-800 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>{prov}</span>
-                      {paymentProvider === prov && <Check className="size-3.5 text-teal-600" />}
-                    </button>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1">Mobile Money Number</label>
-                  <input
-                    type="tel"
-                    placeholder="0627204980"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border text-sm font-mono tracking-wider focus:outline-teal-600 bg-transparent"
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    An automated USSD push notification will be sent to your phone.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {!showSimBankingFallback ? (
-                  <>
-                    <div>
-                      <label className="text-xs font-bold block mb-1">Cardholder Full Name</label>
-                      <input
-                        type="text"
-                        placeholder="John M. Doe"
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border text-sm focus:outline-teal-600 bg-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold block mb-1">Card Number</label>
-                      <input
-                        type="text"
-                        maxLength={19}
-                        placeholder="4123 •••• •••• 9801"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border text-sm font-mono tracking-wider focus:outline-teal-600 bg-transparent"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-bold block mb-1">Expiry (MM/YY)</label>
-                        <input
-                          type="text"
-                          maxLength={5}
-                          placeholder="08/28"
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border text-sm font-mono text-center focus:outline-teal-600 bg-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold block mb-1">CVV</label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          placeholder="•••"
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border text-sm font-mono text-center focus:outline-teal-600 bg-transparent"
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 rounded-xl text-xs space-y-1">
-                      <span className="font-bold text-amber-900 dark:text-amber-200">SimBanking / Mobile Deposit Instructions:</span>
-                      <p className="text-amber-800 dark:text-amber-300">
-                        Transfer TZS 5,000 to CRDB Control No / NMB Lipa Number, then enter transaction code below.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold block mb-1">Deposit Transaction Code / Reference</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. TXN98721345"
-                        value={bankReference}
-                        onChange={(e) => setBankReference(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border text-sm font-mono uppercase bg-transparent"
-                      />
-                    </div>
-                  </div>
-                )}
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={() => setShowSimBankingFallback(!showSimBankingFallback)}
-                    className="text-[11px] text-teal-600 hover:underline"
-                  >
-                    {!showSimBankingFallback ? "Prefer CRDB/NMB SimBanking Code?" : "Switch back to Card entry"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <Button
-              onClick={handleProcessPayment}
-              disabled={isProcessingPayment}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm gap-2"
-            >
-              {isProcessingPayment ? (
-                <>
-                  <RefreshCw className="size-4 animate-spin" /> Verifying Payment...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="size-4" /> Pay TZS 5,000 & Download PDF
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
+        }}
+      />
 
       {/* HEADER */}
       <div className="flex items-center justify-between border-b pb-4">
@@ -1712,15 +1462,27 @@ Follow these strict writing style instructions:
                   Preview & Edit
                 </Button>
 
-                {/* DOWNLOAD PDF ACTION (INTEGRATED WITH PAYMENT DETECTION) */}
+                {/* DOWNLOAD ACTIONS (INTEGRATED WITH PAYMENT DETECTION) */}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => handleExport("doc")} 
+                  disabled={!generatedReport} 
+                  className="text-xs gap-1.5 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                  title="Export official Word (.docx) document"
+                >
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <Download className="size-3.5" />}
+                  Word (.docx)
+                </Button>
+
                 <Button 
                   size="sm" 
                   onClick={() => handleExport("pdf")} 
                   disabled={!generatedReport} 
-                  className={`text-xs gap-1.5 font-medium shadow-sm transition ${
+                  className={`text-xs gap-1.5 font-bold shadow-sm transition ${
                     isUnlocked
                       ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                      : "bg-rose-600 hover:bg-rose-700 text-white"
+                      : "bg-teal-600 hover:bg-teal-700 text-white"
                   }`}
                   title={!isUnlocked ? "Complete payment to unlock and download PDF" : "Download official PDF document"}
                 >

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import catalogUniversities from "@/data/catalog.json";
+import { TANZANIA_ACADEMIC_CATALOG } from "@/data/tanzania-academic-catalog";
 
 export interface UniversityItem {
   id: string;
@@ -78,7 +78,7 @@ export class UniversityTemplateService {
       if (rows && rows.length > 0) {
         return rows.map((r) => {
           // Cross-reference logo from catalog if logoUrl is empty or local
-          const catalogMatch = catalogUniversities.find(
+          const catalogMatch = TANZANIA_ACADEMIC_CATALOG.find(
             (c) => c.shortName.toLowerCase() === (r.shortName || "").toLowerCase()
           );
           return {
@@ -96,14 +96,15 @@ export class UniversityTemplateService {
       console.warn("[UniversityTemplateService] Database query fallback:", err);
     }
 
-    // Fallback to static catalog if DB is momentarily unreachable
-    return catalogUniversities.map((c) => ({
+    // Fallback to the master static catalog if DB is momentarily unreachable
+    return TANZANIA_ACADEMIC_CATALOG.map((c) => ({
       id: c.id,
       name: c.name,
       shortName: c.shortName,
+      slug: c.slug,
       logoUrl: c.logoUrl,
-      hasVerifiedTemplate: ["UDSM", "IFM", "CBE", "ARU", "NIT", "OUT"].includes(c.shortName),
-      templateCount: ["UDSM", "IFM", "CBE", "ARU", "NIT", "OUT"].includes(c.shortName) ? 1 : 0,
+      hasVerifiedTemplate: c.hasOfficialTemplate,
+      templateCount: c.hasOfficialTemplate ? 1 : 0,
     }));
   }
 

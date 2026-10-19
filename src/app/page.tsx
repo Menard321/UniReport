@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import AcademicAlerts from "@/lib/sweetalert";
+import { TANZANIA_ACADEMIC_CATALOG } from "@/data/tanzania-academic-catalog";
 
 const REPORT_CAROUSEL_ITEMS = [
   {
@@ -178,27 +179,21 @@ export default function LandingPage() {
               >
                 {Array.from({ length: 2 }).map((_, idx) => (
                   <div key={idx} className="flex shrink-0 gap-8 md:gap-14 items-center">
-                    {[
-                      { shortName: "UDSM", logo: "/logos/UDSM.jpeg" },
-                      { shortName: "UDOM", logo: "/logos/UDOM.png" },
-                      { shortName: "SUA", logo: "/logos/SUA.jpeg" },
-                      { shortName: "ARDHI", logo: "/logos/ARDHI.jpeg" },
-                      { shortName: "DIT", logo: "/logos/DIT.jpeg" },
-                      { shortName: "CBE", logo: "/logos/CBE.png" },
-                      { shortName: "IFM", logo: "/logos/IFM.jpeg" },
-                      { shortName: "MUST", logo: "/logos/MUST.jpeg" },
-                      { shortName: "MUHAS", logo: "/logos/MUHAS.jpeg" },
-                      { shortName: "NIT", logo: "/logos/NIT.jpeg" },
-                      { shortName: "IAA", logo: "/logos/IAA.jpeg" }
-                    ].map((item, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1.5 hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group">
+                    {TANZANIA_ACADEMIC_CATALOG.map((item, i) => (
+                      <Link
+                        key={i}
+                        href="/universities"
+                        className="flex flex-col items-center gap-1.5 hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group/uni"
+                      >
                         <img 
-                          src={item.logo}
+                          src={item.logoUrl}
                           alt={`${item.shortName} Official Logo`}
-                          className="w-14 h-14 md:w-16 md:h-16 object-contain shadow-sm rounded-xl bg-white dark:bg-slate-950 p-1 border border-border/80 group-hover:border-teal-500/80 group-hover:shadow-md group-hover:shadow-teal-500/20 transition-all duration-300" 
+                          className="w-14 h-14 md:w-16 md:h-16 object-contain shadow-sm rounded-xl bg-white dark:bg-slate-950 p-1 border border-border/80 group-hover/uni:border-teal-500/80 group-hover/uni:shadow-md group-hover/uni:shadow-teal-500/20 transition-all duration-300"
                         />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{item.shortName}</span>
-                      </div>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover/uni:text-teal-600 dark:group-hover/uni:text-teal-400 transition-colors">
+                          {item.shortName}
+                        </span>
+                      </Link>
                     ))}
                   </div>
                 ))}

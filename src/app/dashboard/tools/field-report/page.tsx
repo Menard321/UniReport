@@ -30,10 +30,16 @@ import {
   Calendar,
   FileSpreadsheet,
   ExternalLink,
-  Download
+  Download,
+  Wand2,
+  AlertCircle,
+  Info,
+  Paperclip,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import { SuggestionModal } from "@/components/evidence/SuggestionModal";
 import {
   TANZANIA_ACADEMIC_CATALOG,
   getUniversitiesCatalog,
@@ -101,6 +107,7 @@ export default function FieldReportGuidedPage() {
   const [toolsUsed, setToolsUsed] = useState("");
   const [challenges, setChallenges] = useState("");
   const [keyLearnings, setKeyLearnings] = useState("");
+  const [activeSuggestionField, setActiveSuggestionField] = useState<"activities" | "toolsUsed" | "challenges" | "keyLearnings" | null>(null);
   const [stepError, setStepError] = useState("");
   const [canvasViewMode, setCanvasViewMode] = useState<"formatted" | "raw">("formatted");
 
@@ -110,6 +117,12 @@ export default function FieldReportGuidedPage() {
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [templateUrlInput, setTemplateUrlInput] = useState("");
   const [urlFetchError, setUrlFetchError] = useState("");
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null);
+
+  // STUDENT EVIDENCE / LOGBOOK UPLOAD STATE
+  const [uploadedEvidenceFileName, setUploadedEvidenceFileName] = useState("");
+  const [isParsingEvidence, setIsParsingEvidence] = useState(false);
+  const [evidenceUploadSuccess, setEvidenceUploadSuccess] = useState<string | null>(null);
 
   // SERVER-SIDE TEMPLATE RESOLUTION (FOR AUDIT COMPATIBILITY)
   const [resolvedTemplate, setResolvedTemplate] = useState<ResolvedTemplate | null>(null);
@@ -137,6 +150,9 @@ export default function FieldReportGuidedPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"pdf">("pdf");
   const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // CURRENT SELECTED UNIVERSITY ITEM
+  const selectedUni = selectedUniShortName ? getUniversityByShortName(selectedUniShortName) : undefined;
 
   // CASCADING DROPDOWN COLLECTIONS
   const availableColleges: CollegeItem[] = selectedUniShortName ? getCollegesForUniversity(selectedUniShortName) : [];
@@ -347,6 +363,7 @@ export default function FieldReportGuidedPage() {
       if (data.success && data.sections && data.sections.length > 0) {
         setCustomSections(data.sections);
         AcademicAlerts.toast(`Template Loaded: ${file.name} (${data.sections.length} Chapters)`, "success");
+        setUploadWarning(data.warningMessage || null);
       } else {
         // Fallback default custom chapters
         setCustomSections([
@@ -356,9 +373,11 @@ export default function FieldReportGuidedPage() {
           { id: "c4", title: "Chapter 4: Skills Acquired & Curriculum Relevance", description: `From ${file.name}`, order: 4 },
           { id: "c5", title: "Chapter 5: Conclusions & Actionable Recommendations", description: `From ${file.name}`, order: 5 }
         ]);
+        setUploadWarning("Using standard TCU inter-university chapters. You can customize them in Step 4.");
       }
     } catch (err) {
       console.error("Failed to parse uploaded template:", err);
+      setUploadWarning("Could not parse file. Standard chapters provided for review.");
     } finally {
       setIsParsingFile(false);
     }
@@ -421,6 +440,49 @@ export default function FieldReportGuidedPage() {
       AcademicAlerts.error("Template Error", err.message || "Failed to load local template file.");
     } finally {
       setIsParsingFile(false);
+    }
+  };
+
+  const handleClearCustomTemplate = () => {
+    setUploadedFileName("");
+    setCustomSections([]);
+    setUploadWarning(null);
+  };
+
+  // STUDENT EVIDENCE FILE UPLOADER (EXTRACTS LOGBOOK / FIELD TASKS)
+  const handleEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedEvidenceFileName(file.name);
+    setIsParsingEvidence(true);
+    setEvidenceUploadSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/evidence/parse", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success && data.evidence) {
+        if (data.evidence.activities) setActivities(data.evidence.activities);
+        if (data.evidence.toolsUsed) setToolsUsed(data.evidence.toolsUsed);
+        if (data.evidence.challenges) setChallenges(data.evidence.challenges);
+        if (data.evidence.keyLearnings) setKeyLearnings(data.evidence.keyLearnings);
+        setEvidenceUploadSuccess(`Successfully extracted tasks, tools, and challenges from "${file.name}" into your work log below! You can preview and edit.`);
+        setStepError("");
+      } else {
+        setStepError("Could not extract text from the evidence document. You can still use the suggestion drafts below.");
+      }
+    } catch (err) {
+      console.error("Failed to parse evidence file:", err);
+      setStepError("Error processing evidence file. Please enter details or use suggestions below.");
+    } finally {
+      setIsParsingEvidence(false);
     }
   };
 
@@ -1349,14 +1411,38 @@ Follow these strict writing style instructions:
           )}
 
           <div className="space-y-4">
-            {/* OPTIONAL CUSTOM TEMPLATE UPLOAD & URL */}
+            {/* NOTICE IF UNIVERSITY HAS NO VERIFIED BUNDLED TEMPLATE */}
+            {selectedUni && !selectedUni.hasOfficialTemplate && (
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                  <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Standard TCU Inter-University Format Active for {selectedUni.shortName}</span>
+                </div>
+                <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
+                  We currently use the verified Tanzania Commission for Universities (TCU) inter-university standard structure for {selectedUni.name}. <strong>If your faculty or supervisor gave you a custom sample template or guideline document</strong>, upload it below and our engine will adopt your university&apos;s exact chapter outline automatically.
+                </p>
+              </div>
+            )}
+
+            {/* 1. CUSTOM TEMPLATE UPLOAD & URL */}
             <div className="p-4 rounded-xl border border-dashed border-teal-300 dark:border-teal-800 bg-teal-50/40 dark:bg-teal-950/20 space-y-3">
-              <label className="text-xs font-bold uppercase text-teal-900 dark:text-teal-200 flex items-center gap-2">
-                <Upload className="size-4 text-teal-600 dark:text-teal-400" />
-                Upload Official University Guideline / Format or Provide Template URL
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase text-teal-900 dark:text-teal-200 flex items-center gap-2 cursor-pointer">
+                  <Upload className="size-4 text-teal-600 dark:text-teal-400" />
+                  1. University Guideline / Sample Template (.PDF / .DOCX / .TXT / URL)
+                </label>
+                {uploadedFileName && (
+                  <button
+                    type="button"
+                    onClick={handleClearCustomTemplate}
+                    className="text-[11px] font-medium text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-1"
+                  >
+                    <Trash2 className="size-3" /> Clear Template
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-muted-foreground">
-                Our engine extracts the exact chapter structure, section logic, and Times New Roman (10pt/14pt/12pt) hierarchy automatically.
+                Optional: Upload your university&apos;s official attachment guideline or provide a link. Our engine extracts the exact chapter headings and Times New Roman (10pt/14pt/12pt) hierarchy automatically.
               </p>
 
               {/* Option 1: File Upload */}
@@ -1428,14 +1514,60 @@ Follow these strict writing style instructions:
                 </p>
               )}
               {uploadedFileName && !isParsingFile && (
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 pt-1">
-                  <Check className="size-3.5" /> Blueprint extracted from: {uploadedFileName} ({customSections.length} Sections Active)
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Check className="size-4 text-emerald-600 shrink-0" />
+                  <span>Custom blueprint extracted from <strong>{uploadedFileName}</strong> ({customSections.length} Sections Active)</span>
+                </div>
+              )}
+              {uploadWarning && (
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                  <Info className="size-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <span>{uploadWarning}</span>
+                </div>
+              )}
+            </div>
+
+            {/* 2. STUDENT PRACTICAL EVIDENCE / LOGBOOK UPLOAD */}
+            <div className="p-4 rounded-xl border border-dashed border-sky-300 dark:border-sky-800 bg-sky-50/40 dark:bg-sky-950/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase text-sky-900 dark:text-sky-200 flex items-center gap-2 cursor-pointer">
+                  <Paperclip className="size-4 text-sky-600 dark:text-sky-400" />
+                  2. Student Attachment Evidence / Logbook / Rough Notes (.PDF / .DOCX / .TXT)
+                </label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Optional: Have a daily logbook, supervisor remark sheet, or raw draft notes? Upload them here to automatically populate your tasks, tools, and challenges below.
+              </p>
+              <input
+                type="file"
+                accept=".txt,.doc,.docx,.pdf"
+                onChange={handleEvidenceUpload}
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer"
+              />
+              {isParsingEvidence && (
+                <p className="text-xs text-sky-600 flex items-center gap-1.5 font-medium">
+                  <Loader2 className="size-3.5 animate-spin" /> Analyzing evidence file and extracting activities, tools, and challenges...
                 </p>
+              )}
+              {evidenceUploadSuccess && !isParsingEvidence && (
+                <div className="p-2.5 bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 rounded-lg text-xs font-medium text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                  <Check className="size-4 text-sky-600 shrink-0" />
+                  <span>{evidenceUploadSuccess}</span>
+                </div>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Activities & Tasks Performed</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground">Activities & Tasks Performed</label>
+                <button
+                  type="button"
+                  onClick={() => setActiveSuggestionField("activities")}
+                  className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="size-3" /> Suggest Professional Draft
+                </button>
+              </div>
               <textarea
                 rows={3}
                 placeholder="Describe your daily operations, assignments, tests, or engineering duties (e.g. 1. Routine maintenance on equipment... 2. Quality testing and sample analysis... 3. Process optimization...)"
@@ -1449,7 +1581,16 @@ Follow these strict writing style instructions:
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Tools, Equipment & Software Used</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground">Tools, Equipment & Software Used</label>
+                <button
+                  type="button"
+                  onClick={() => setActiveSuggestionField("toolsUsed")}
+                  className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="size-3" /> Suggest Equipment
+                </button>
+              </div>
               <input
                 type="text"
                 placeholder="e.g. Spectrophotometer, Refractometer, Wireshark, Multimeter, Linux Terminal..."
@@ -1461,7 +1602,16 @@ Follow these strict writing style instructions:
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Challenges Encountered</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Challenges Encountered</label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSuggestionField("challenges")}
+                    className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Sparkles className="size-3" /> Suggest
+                  </button>
+                </div>
                 <textarea
                   rows={2}
                   placeholder="e.g. Calibration drift on sensors during peak production; mitigated by daily recalibration protocols."
@@ -1471,7 +1621,16 @@ Follow these strict writing style instructions:
                 />
               </div>
               <div>
-                <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">Key Learnings</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Key Learnings</label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSuggestionField("keyLearnings")}
+                    className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Sparkles className="size-3" /> Suggest
+                  </button>
+                </div>
                 <textarea
                   rows={2}
                   placeholder="e.g. Hands-on mastery of industrial process control, standard operating procedure compliance, and workplace safety."
@@ -1481,6 +1640,44 @@ Follow these strict writing style instructions:
                 />
               </div>
             </div>
+
+            {/* SUGGESTION / REWRITE MODAL */}
+            {activeSuggestionField && (
+              <SuggestionModal
+                isOpen={!!activeSuggestionField}
+                onClose={() => setActiveSuggestionField(null)}
+                onApply={(newVal) => {
+                  if (activeSuggestionField === "activities") setActivities(newVal);
+                  if (activeSuggestionField === "toolsUsed") setToolsUsed(newVal);
+                  if (activeSuggestionField === "challenges") setChallenges(newVal);
+                  if (activeSuggestionField === "keyLearnings") setKeyLearnings(newVal);
+                  setStepError("");
+                }}
+                field={activeSuggestionField}
+                fieldName={
+                  activeSuggestionField === "activities"
+                    ? "Activities & Tasks Performed"
+                    : activeSuggestionField === "toolsUsed"
+                    ? "Tools, Equipment & Software Used"
+                    : activeSuggestionField === "challenges"
+                    ? "Challenges Encountered"
+                    : "Key Learnings & Competencies"
+                }
+                programmeId={selectedCourseId || programme}
+                organization={organization}
+                department={department}
+                duration={duration}
+                currentValue={
+                  activeSuggestionField === "activities"
+                    ? activities
+                    : activeSuggestionField === "toolsUsed"
+                    ? toolsUsed
+                    : activeSuggestionField === "challenges"
+                    ? challenges
+                    : keyLearnings
+                }
+              />
+            )}
           </div>
 
           <div className="flex justify-between pt-4 border-t">

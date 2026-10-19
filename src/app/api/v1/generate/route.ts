@@ -151,7 +151,7 @@ CRITICAL INTEGRITY & DISCIPLINE INSTRUCTIONS:
     let generatedText = "";
     try {
       const { text } = await generateText({
-        model: google("gemini-1.5-flash-latest"),
+        model: google("gemini-1.5-flash"),
         system: systemInstruction,
         prompt: userPrompt,
         temperature: 0.2

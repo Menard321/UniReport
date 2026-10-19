@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2, ChevronRight, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getUniversitiesCatalog } from "@/data/tanzania-academic-catalog";
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -45,11 +46,11 @@ export default function OnboardingPage() {
                   <label className="text-sm font-medium">Institution / University</label>
                   <select className="w-full h-11 px-3 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary/20 outline-none">
                     <option value="" disabled selected>Select your University</option>
-                    <option value="udsm">University of Dar es Salaam (UDSM)</option>
-                    <option value="udom">University of Dodoma (UDOM)</option>
-                    <option value="sua">Sokoine University of Agriculture (SUA)</option>
-                    <option value="aru">Ardhi University (ARU)</option>
-                    <option value="ifm">Institute of Finance Management (IFM)</option>
+                    {getUniversitiesCatalog().map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.shortName})
+                      </option>
+                    ))}
                     <option value="other">Other / Not Listed</option>
                   </select>
                 </div>

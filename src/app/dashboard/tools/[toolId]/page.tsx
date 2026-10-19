@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { TOOLS } from "@/lib/tools-config";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import AcademicAlerts from "@/lib/sweetalert";
+import { getUniversitiesCatalog } from "@/data/tanzania-academic-catalog";
 
 export default function ToolPage() {
   const params = useParams();
@@ -1219,11 +1220,11 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
                     onChange={(e) => setRpUniversity(e.target.value)}
                     className="w-full p-2.5 rounded-xl border border-input text-sm bg-background font-medium focus:ring-2 focus:ring-primary focus:outline-none"
                   >
-                    <option value="University of Dar es Salaam (UDSM)">University of Dar es Salaam (UDSM)</option>
-                    <option value="University of Dodoma (UDOM)">University of Dodoma (UDOM)</option>
-                    <option value="Sokoine University of Agriculture (SUA)">Sokoine University of Agriculture (SUA)</option>
-                    <option value="Ardhi University (ARU)">Ardhi University (ARU)</option>
-                    <option value="Dar es Salaam Institute of Technology (DIT)">DIT / MUST Technical Guidelines</option>
+                    {getUniversitiesCatalog().map((u) => (
+                      <option key={u.id} value={`${u.name} (${u.shortName})`}>
+                        {u.name} ({u.shortName})
+                      </option>
+                    ))}
                     <option value="Generic Tanzanian Higher Education Standard">Generic Tanzania Standard (TCU)</option>
                   </select>
                 </div>

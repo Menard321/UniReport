@@ -20,11 +20,18 @@ import {
   CheckCircle2,
   ExternalLink,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  Paperclip,
+  Trash2,
+  Info,
+  Loader2,
+  Wand2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import { PreFlightReviewModal } from "@/components/report-engine/PreFlightReviewModal";
+import { FYPSuggestionModal } from "@/components/evidence/FYPSuggestionModal";
 import {
   getUniversitiesCatalog,
   getUniversityByShortName,
@@ -78,6 +85,23 @@ export default function FYPGeneratorPage() {
   const [researchQuestions, setResearchQuestions] = useState("");
   const [theoreticalFramework, setTheoreticalFramework] = useState("");
   const [methodology, setMethodology] = useState("");
+
+  // SUGGESTION MODAL STATE
+  const [activeSuggestionField, setActiveSuggestionField] = useState<"problemStatement" | "objectives" | "researchQuestions" | "theoreticalFramework" | "methodology" | null>(null);
+
+  // CUSTOM THESIS TEMPLATE UPLOAD STATE
+  const [uploadedTemplateName, setUploadedTemplateName] = useState("");
+  const [customSections, setCustomSections] = useState<Array<{ id: string; title: string; description: string; order: number }>>([]);
+  const [isParsingTemplate, setIsParsingTemplate] = useState(false);
+  const [templateWarning, setTemplateWarning] = useState<string | null>(null);
+
+  // RESEARCH PROPOSAL / EVIDENCE UPLOAD STATE
+  const [uploadedDocName, setUploadedDocName] = useState("");
+  const [isParsingDoc, setIsParsingDoc] = useState(false);
+  const [docUploadSuccess, setDocUploadSuccess] = useState<string | null>(null);
+
+  // CURRENT SELECTED UNIVERSITY ITEM
+  const selectedUni = selectedUniShortName ? getUniversityByShortName(selectedUniShortName) : undefined;
 
   // STEP 4 & 5: SEQUENTIAL GENERATION STATE
   const [blueprintSections, setBlueprintSections] = useState<BlueprintSection[]>([]);
@@ -214,17 +238,94 @@ export default function FYPGeneratorPage() {
     setStep(3);
   };
 
+
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedTemplateName(file.name);
+    setIsParsingTemplate(true);
+    setTemplateWarning(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/templates/parse", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success && data.sections && data.sections.length > 0) {
+        setCustomSections(data.sections);
+        setTemplateWarning(data.warningMessage || null);
+      } else {
+        setTemplateWarning("Standard chapters applied. You can customize them in Step 4.");
+      }
+    } catch (err) {
+      console.error("Failed to parse thesis template:", err);
+      setTemplateWarning("Could not parse file. Standard chapters applied.");
+    } finally {
+      setIsParsingTemplate(false);
+    }
+  };
+
+  const handleClearTemplate = () => {
+    setUploadedTemplateName("");
+    setCustomSections([]);
+    setTemplateWarning(null);
+  };
+
+  // EVIDENCE / PROPOSAL DRAFT UPLOAD HANDLER
+  const handleEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedDocName(file.name);
+    setIsParsingDoc(true);
+    setDocUploadSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/evidence/parse", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success && data.evidence) {
+        if (data.evidence.activities && !problemStatement) {
+          setProblemStatement(data.evidence.activities);
+        }
+        if (data.evidence.challenges && !objectives) {
+          setObjectives(data.evidence.challenges);
+        }
+        if (data.evidence.toolsUsed && !methodology) {
+          setMethodology(`Target Technologies & Tools: ${data.evidence.toolsUsed}`);
+        }
+        setDocUploadSuccess(`Extracted research details from "${file.name}"! You can review and edit below.`);
+      }
+    } catch (err) {
+      console.error("Failed to parse research document:", err);
+    } finally {
+      setIsParsingDoc(false);
+    }
+  };
+
   const handleProceedToStep4 = async () => {
     if (!problemStatement.trim()) {
-      setStepError("Please formulate your Statement of the Problem.");
+      setStepError("Please provide a Statement of the Problem.");
       return;
     }
     if (!objectives.trim()) {
-      setStepError("Please define your Specific Research Objectives.");
+      setStepError("Please provide Specific Research Objectives.");
       return;
     }
     if (!methodology.trim()) {
-      setStepError("Please specify your Research Methodology & Tech Stack.");
+      setStepError("Please provide the Research Methodology & Proposed Architecture.");
       return;
     }
     setStepError("");
@@ -252,9 +353,25 @@ export default function FYPGeneratorPage() {
         setCompiledSpec(data.specification);
         setCompiledCalculations(data.compiledCalculations || []);
         setCompiledDiagrams(data.compiledDiagrams || []);
-        if (data.specification.sections) {
+        
+        if (customSections.length > 0) {
+          setBlueprintSections(
+            customSections.map((sec, idx) => ({
+              chapterNumber: idx + 1,
+              title: sec.title,
+              subHeadings: [
+                `${idx + 1}.1 Overview & Problem Context`,
+                `${idx + 1}.2 Technical Execution & Evidence`,
+                `${idx + 1}.3 Detailed Evaluation & Discussion`
+              ],
+              wordBudget: Math.round(((parseInt(targetPages) || 15) * 350) / customSections.length),
+              promptInstructions: sec.description || "Draft publication-grade dissertation section strictly adhering to institutional requirements."
+            }))
+          );
+        } else if (data.specification.sections) {
           setBlueprintSections(data.specification.sections);
         }
+
         if (data.specification.formatting?.citationStyle) {
           setCitationStyle(data.specification.formatting.citationStyle);
         }
@@ -725,15 +842,118 @@ export default function FYPGeneratorPage() {
               3. Research Core & Authentic Evidence
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Provide your problem statement, specific objectives, and technical methodology to guarantee publication-grade rigor.
+              Provide your problem statement, specific objectives, and technical methodology. You can also upload a guideline or use draft suggestions.
             </p>
+          </div>
+
+          {stepError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0" /> {stepError}
+            </div>
+          )}
+
+          {/* NOTICE IF UNIVERSITY HAS NO VERIFIED BUNDLED TEMPLATE */}
+          {selectedUni && !selectedUni.hasOfficialTemplate && (
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Standard TCU Inter-University Thesis Structure Active for {selectedUni.shortName}</span>
+              </div>
+              <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
+                We currently apply the verified TCU inter-university postgraduate & undergraduate thesis framework for {selectedUni.name}. <strong>If your faculty or supervisor provided a specific thesis guideline document or chapter format</strong>, please upload it below and our engine will adopt your university&apos;s exact outline.
+              </p>
+            </div>
+          )}
+
+          {/* 1. OPTIONAL THESIS TEMPLATE UPLOAD */}
+          <div className="p-4 rounded-xl border border-dashed border-purple-300 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/20 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase text-purple-900 dark:text-purple-200 flex items-center gap-2 cursor-pointer">
+                <Upload className="size-4 text-purple-600 dark:text-purple-400" />
+                1. University Dissertation Guideline / Sample (.PDF / .DOCX / .TXT)
+              </label>
+              {uploadedTemplateName && (
+                <button
+                  type="button"
+                  onClick={handleClearTemplate}
+                  className="text-[11px] font-medium text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-1"
+                >
+                  <Trash2 className="size-3" /> Clear Template
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Optional: Upload your university&apos;s official FYP guideline or thesis sample. Our engine extracts the exact chapter headings.
+            </p>
+            <input
+              type="file"
+              accept=".txt,.doc,.docx,.pdf"
+              onChange={handleTemplateUpload}
+              className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer"
+            />
+            {isParsingTemplate && (
+              <p className="text-xs text-purple-600 flex items-center gap-1.5 font-medium">
+                <Loader2 className="size-3.5 animate-spin" /> Parsing dissertation structure and extracting chapters...
+              </p>
+            )}
+            {uploadedTemplateName && !isParsingTemplate && (
+              <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                <Check className="size-4 text-emerald-600 shrink-0" />
+                <span>Custom blueprint extracted from <strong>{uploadedTemplateName}</strong> ({customSections.length} Sections Active)</span>
+              </div>
+            )}
+            {templateWarning && (
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                <Info className="size-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <span>{templateWarning}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 2. OPTIONAL PROPOSAL DRAFT / CONCEPT NOTE UPLOAD */}
+          <div className="p-4 rounded-xl border border-dashed border-sky-300 dark:border-sky-800 bg-sky-50/40 dark:bg-sky-950/20 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase text-sky-900 dark:text-sky-200 flex items-center gap-2 cursor-pointer">
+                <Paperclip className="size-4 text-sky-600 dark:text-sky-400" />
+                2. Concept Note / Proposal Draft / Defense Notes (.PDF / .DOCX / .TXT)
+              </label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Optional: Upload an existing concept note, presentation notes, or rough proposal to automatically populate the research fields below.
+            </p>
+            <input
+              type="file"
+              accept=".txt,.doc,.docx,.pdf"
+              onChange={handleEvidenceUpload}
+              className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer"
+            />
+            {isParsingDoc && (
+              <p className="text-xs text-sky-600 flex items-center gap-1.5 font-medium">
+                <Loader2 className="size-3.5 animate-spin" /> Analyzing research document and extracting fields...
+              </p>
+            )}
+            {docUploadSuccess && !isParsingDoc && (
+              <div className="p-2.5 bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 rounded-lg text-xs font-medium text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <Check className="size-4 text-sky-600 shrink-0" />
+                <span>{docUploadSuccess}</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-5">
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                Statement of the Problem *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Statement of the Problem *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setActiveSuggestionField("problemStatement")}
+                  className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+                >
+                  <Sparkles className="size-3" /> Suggest Professional Draft
+                </button>
+              </div>
               <textarea
                 rows={4}
                 placeholder="e.g. Manual patient triage in emergency departments leads to excessive waiting times exceeding 3 hours, causing preventable clinical complications. Existing digital tools require reliable grid connectivity and lack localized triage classification models."
@@ -744,9 +964,18 @@ export default function FYPGeneratorPage() {
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                Specific Research Objectives *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Specific Research Objectives *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setActiveSuggestionField("objectives")}
+                  className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+                >
+                  <Sparkles className="size-3" /> Suggest Objectives
+                </button>
+              </div>
               <textarea
                 rows={3}
                 placeholder="e.g. 1. To analyze emergency room workflow bottlenecks. 2. To develop an IoT vital-sign monitoring node. 3. To train an automated triage prioritization algorithm. 4. To evaluate triage accuracy and latency in a clinical setting."
@@ -758,9 +987,18 @@ export default function FYPGeneratorPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                  Key Research Questions / Hypotheses
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Key Research Questions / Hypotheses
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSuggestionField("researchQuestions")}
+                    className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+                  >
+                    <Sparkles className="size-3" /> Suggest
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   placeholder="e.g. How does automated vital signs capture impact nurse triage decision speed? What is the predictive accuracy of the automated triage index?"
@@ -771,9 +1009,18 @@ export default function FYPGeneratorPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                  Theoretical / Conceptual Framework
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Theoretical / Conceptual Framework
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSuggestionField("theoreticalFramework")}
+                    className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+                  >
+                    <Sparkles className="size-3" /> Suggest
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   placeholder="e.g. Emergency Severity Index (ESI) framework, Queuing Theory (M/M/c models), Technology Acceptance Model (TAM)."
@@ -785,9 +1032,18 @@ export default function FYPGeneratorPage() {
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                Research Methodology & Proposed Architecture / Tech Stack *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Research Methodology & Proposed Architecture / Tech Stack *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setActiveSuggestionField("methodology")}
+                  className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+                >
+                  <Sparkles className="size-3" /> Suggest Architecture
+                </button>
+              </div>
               <textarea
                 rows={3}
                 placeholder="e.g. Quantitative experimental research design. System developed using ESP32 microcontrollers, MQTT messaging protocol, Node.js backend, and Next.js frontend with PostgreSQL."
@@ -797,6 +1053,48 @@ export default function FYPGeneratorPage() {
               />
             </div>
           </div>
+
+          {/* FYP SUGGESTION MODAL */}
+          {activeSuggestionField && (
+            <FYPSuggestionModal
+              isOpen={!!activeSuggestionField}
+              onClose={() => setActiveSuggestionField(null)}
+              onApply={(newVal) => {
+                if (activeSuggestionField === "problemStatement") setProblemStatement(newVal);
+                if (activeSuggestionField === "objectives") setObjectives(newVal);
+                if (activeSuggestionField === "researchQuestions") setResearchQuestions(newVal);
+                if (activeSuggestionField === "theoreticalFramework") setTheoreticalFramework(newVal);
+                if (activeSuggestionField === "methodology") setMethodology(newVal);
+                setStepError("");
+              }}
+              field={activeSuggestionField}
+              fieldName={
+                activeSuggestionField === "problemStatement"
+                  ? "Statement of the Problem"
+                  : activeSuggestionField === "objectives"
+                  ? "Specific Research Objectives"
+                  : activeSuggestionField === "researchQuestions"
+                  ? "Key Research Questions"
+                  : activeSuggestionField === "theoreticalFramework"
+                  ? "Theoretical / Conceptual Framework"
+                  : "Research Methodology & Tech Stack"
+              }
+              title={title}
+              programme={isCustomCourse ? customCourse : programme}
+              university={university}
+              currentValue={
+                activeSuggestionField === "problemStatement"
+                  ? problemStatement
+                  : activeSuggestionField === "objectives"
+                  ? objectives
+                  : activeSuggestionField === "researchQuestions"
+                  ? researchQuestions
+                  : activeSuggestionField === "theoreticalFramework"
+                  ? theoreticalFramework
+                  : methodology
+              }
+            />
+          )}
 
           <div className="flex justify-between pt-4">
             <Button variant="outline" onClick={() => setStep(2)}>

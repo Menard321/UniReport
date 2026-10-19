@@ -149,35 +149,36 @@ export async function POST(req: NextRequest) {
     }
 
     // Fallback standard chapters if file didn't include explicit numbered headings
-    if (sections.length < 3) {
+    const isStandardFallback = sections.length < 3;
+    if (isStandardFallback) {
       sections.push(
         {
           id: "custom-ch1",
-          title: "CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION",
+          title: "Chapter 1: Organization Overview & Placement Mandate",
           description: `Extracted from ${fileName}: profile, historical background, organizational structure, core operations.`,
           order: 1
         },
         {
           id: "custom-ch2",
-          title: "CHAPTER 2: TECHNICAL ACTIVITIES & WORKPLACE DUTIES",
+          title: "Chapter 2: Technical Duties & Fieldwork Implementation",
           description: `Extracted from ${fileName}: major hands-on tasks, methodology, system diagrams, and tools implemented.`,
           order: 2
         },
         {
           id: "custom-ch3",
-          title: "CHAPTER 3: INDUSTRIAL CHALLENGES & PROBLEM SOLVING",
+          title: "Chapter 3: Industrial Challenges & Problem Solving",
           description: `Extracted from ${fileName}: technical obstacles encountered and solutions formulated.`,
           order: 3
         },
         {
           id: "custom-ch4",
-          title: "CHAPTER 4: SKILLS ACQUIRED & CURRICULUM RELEVANCE",
+          title: "Chapter 4: Skills Acquired & Curriculum Relevance",
           description: `Extracted from ${fileName}: theoretical knowledge vs real-world practical application.`,
           order: 4
         },
         {
           id: "custom-ch5",
-          title: "CHAPTER 5: CONCLUSIONS & STRATEGIC RECOMMENDATIONS",
+          title: "Chapter 5: Conclusions & Actionable Recommendations",
           description: `Extracted from ${fileName}: critical evaluation and actionable recommendations.`,
           order: 5
         }
@@ -190,6 +191,11 @@ export async function POST(req: NextRequest) {
       url: url || undefined,
       templateName: `Institutional Guideline: ${fileName.replace(/\.[^/.]+$/, "")}`,
       sections,
+      confidence: isStandardFallback ? "low" : "high",
+      isStandardFallback,
+      warningMessage: isStandardFallback
+        ? "Could not detect explicit chapter headings (e.g., 'Chapter 1', '1.0'). Standard TCU inter-university fieldwork chapters have been provided. You can customize them in Step 4."
+        : undefined,
       formattingRules: {
         fontFamily: "Times New Roman",
         bodyFontSizePt: 10,

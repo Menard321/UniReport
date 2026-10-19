@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "postinstall": "prisma generate",
     "lint": "eslint"
   },
@@ -22,6 +22,7 @@
     "prisma": "^5.18.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "sweetalert2": "^11.26.25",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
@@ -35,5 +36,8 @@
     "prisma": "^5.18.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

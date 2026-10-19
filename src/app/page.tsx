@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import AcademicAlerts from "@/lib/sweetalert";
 
 const REPORT_CAROUSEL_ITEMS = [
   {
@@ -122,25 +123,34 @@ export default function LandingPage() {
                 <span className="flex h-2 w-2 rounded-full bg-teal-500 mr-2 animate-pulse"></span>
                 Now supporting major Universities across Tanzania
               </div>
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl mb-6 font-heading text-primary dark:text-white">
-                Academic Reports, <br /> Built Around Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-teal-400 dark:from-teal-400 dark:to-teal-200">University.</span>
+              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl mb-6 font-heading text-primary dark:text-white group cursor-default transition-transform duration-300 hover:scale-[1.01]">
+                Academic Reports, <br /> Built Around Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-teal-500 to-teal-400 dark:from-teal-400 dark:to-teal-200 group-hover:from-cyan-500 group-hover:to-teal-300 transition-all duration-300">University.</span>
               </h1>
               <p className="mt-6 text-lg tracking-tight text-muted-foreground max-w-2xl mx-auto md:text-xl">
                 The AI-powered academic workspace that respects your university's formatting, verifies every citation, and puts academic accuracy before writing speed.
               </p>
               
-              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link href="/auth/register">
-                  <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-base shadow-lg hover:shadow-xl transition-all" variant="accent">
+                  <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-base shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all" variant="accent">
                     Create Your Report
                     <ArrowRight className="ml-2 size-5" />
                   </Button>
                 </Link>
                 <Link href="/features">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 text-base bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 text-base bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:scale-105 active:scale-95 transition-all">
                     Explore Features
                   </Button>
                 </Link>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={() => AcademicAlerts.info("Tanzanian Institutional Standard", "UniReportTZ enforces verified guidelines for UDSM, ARDHI, CBE, IFM, NIT, and SUA with Times New Roman 10pt body text and binding margins.")}
+                  className="w-full sm:w-auto h-12 px-6 text-sm bg-teal-50/70 dark:bg-teal-950/40 border-teal-300 dark:border-teal-800 text-teal-800 dark:text-teal-300 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Sparkles className="size-4 mr-2 text-teal-600" />
+                  Standards Alert
+                </Button>
               </div>
             </div>
           </div>
@@ -156,8 +166,16 @@ export default function LandingPage() {
 
           {/* Row 1: Leftward Scrolling University Logos */}
           <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
-            <div className="group flex overflow-hidden p-1 [--gap:1.5rem] [--duration:42s]">
-              <div className="flex shrink-0 justify-around gap-8 md:gap-14 animate-marquee-track">
+            <div className="flex overflow-hidden p-1 w-full">
+              <div 
+                className="flex shrink-0 justify-around gap-8 md:gap-14 hover:[animation-play-state:paused]"
+                style={{
+                  animation: "uniMarqueeLeft 28s linear infinite",
+                  display: "flex",
+                  width: "max-content",
+                  willChange: "transform"
+                }}
+              >
                 {Array.from({ length: 2 }).map((_, idx) => (
                   <div key={idx} className="flex shrink-0 gap-8 md:gap-14 items-center">
                     {[
@@ -173,13 +191,13 @@ export default function LandingPage() {
                       { shortName: "NIT", logo: "/logos/NIT.jpeg" },
                       { shortName: "IAA", logo: "/logos/IAA.jpeg" }
                     ].map((item, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1.5 hover:scale-110 transition-transform duration-300 cursor-pointer">
+                      <div key={i} className="flex flex-col items-center gap-1.5 hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group">
                         <img 
                           src={item.logo}
                           alt={`${item.shortName} Official Logo`}
-                          className="w-14 h-14 md:w-16 md:h-16 object-contain shadow-sm rounded-xl bg-white dark:bg-slate-950 p-1 border border-border/80" 
+                          className="w-14 h-14 md:w-16 md:h-16 object-contain shadow-sm rounded-xl bg-white dark:bg-slate-950 p-1 border border-border/80 group-hover:border-teal-500/80 group-hover:shadow-md group-hover:shadow-teal-500/20 transition-all duration-300" 
                         />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{item.shortName}</span>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{item.shortName}</span>
                       </div>
                     ))}
                   </div>
@@ -190,14 +208,22 @@ export default function LandingPage() {
 
           {/* Row 2: Rightward (Reverse) Scrolling Testimonials Ticker */}
           <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
-            <div className="group flex overflow-hidden p-1 [--gap:1.5rem] [--duration:48s]">
-              <div className="flex shrink-0 justify-around gap-6 animate-marquee-reverse-track">
+            <div className="flex overflow-hidden p-1 w-full">
+              <div 
+                className="flex shrink-0 justify-around gap-6 hover:[animation-play-state:paused]"
+                style={{
+                  animation: "uniMarqueeRight 32s linear infinite",
+                  display: "flex",
+                  width: "max-content",
+                  willChange: "transform"
+                }}
+              >
                 {Array.from({ length: 2 }).map((_, idx) => (
                   <div key={idx} className="flex shrink-0 gap-6 items-center">
                     {TESTIMONIAL_ITEMS.map((item, i) => (
                       <div 
                         key={i} 
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-teal-500/50 transition-colors cursor-default whitespace-nowrap"
+                        className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-teal-500 hover:shadow-md hover:shadow-teal-500/10 hover:-translate-y-0.5 transition-all cursor-default whitespace-nowrap"
                       >
                         <Quote className="size-3.5 text-teal-600 shrink-0 opacity-70" />
                         <span className="text-xs text-foreground font-medium max-w-sm truncate">
@@ -215,41 +241,19 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Inline Bulletproof Marquee Styles */}
           <style dangerouslySetInnerHTML={{__html: `
-            @keyframes marquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(calc(-50% - var(--gap)/2)); }
+            @keyframes uniMarqueeLeft {
+              0% { transform: translate3d(0, 0, 0); }
+              100% { transform: translate3d(-50%, 0, 0); }
             }
-            @keyframes marquee_reverse {
-              0% { transform: translateX(calc(-50% - var(--gap)/2)); }
-              100% { transform: translateX(0); }
+            @keyframes uniMarqueeRight {
+              0% { transform: translate3d(-50%, 0, 0); }
+              100% { transform: translate3d(0, 0, 0); }
             }
-            @keyframes marquee_carousel {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(calc(-50% - 1rem)); }
-            }
-            .animate-marquee-track {
-              animation: marquee 42s linear infinite;
-            }
-            .animate-marquee-reverse-track {
-              animation: marquee_reverse 48s linear infinite;
-            }
-            .animate-marquee-carousel-track {
-              animation: marquee_carousel 38s linear infinite;
-            }
-            @media (hover: hover) {
-              .animate-marquee-track:hover,
-              .animate-marquee-reverse-track:hover,
-              .animate-marquee-carousel-track:hover {
-                animation-play-state: paused;
-              }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .animate-marquee-track,
-              .animate-marquee-reverse-track,
-              .animate-marquee-carousel-track {
-                animation-play-state: paused;
-              }
+            @keyframes uniMarqueeCarousel {
+              0% { transform: translate3d(0, 0, 0); }
+              100% { transform: translate3d(-50%, 0, 0); }
             }
           `}} />
         </section>
@@ -262,7 +266,7 @@ export default function LandingPage() {
                 <Sparkles className="size-3.5 text-teal-600" />
                 <span>Deterministic Lifecycle Execution</span>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-heading mb-3 text-primary dark:text-white">
+              <h2 className="text-3xl md:text-4xl font-bold font-heading mb-3 text-primary dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors duration-200 cursor-default inline-block">
                 How UniReportTZ Works
               </h2>
               <p className="text-muted-foreground text-base max-w-xl mx-auto">
@@ -455,7 +459,7 @@ export default function LandingPage() {
               <Layers className="size-3.5" />
               <span>Multi-Discipline Engine</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary dark:text-white mb-3">
+            <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary dark:text-white mb-3 hover:text-teal-600 dark:hover:text-teal-400 transition-colors duration-200 cursor-default inline-block">
               Built for Every Tanzanian Academic Discipline
             </h2>
             <p className="text-muted-foreground text-sm max-w-xl mx-auto">
@@ -465,8 +469,16 @@ export default function LandingPage() {
 
           {/* Infinite Horizontal Carousel Track */}
           <div className="relative w-full overflow-hidden">
-            <div className="group flex overflow-hidden p-2 [--gap:1.5rem]">
-              <div className="flex shrink-0 gap-6 animate-marquee-carousel-track">
+            <div className="flex overflow-hidden p-2 w-full">
+              <div 
+                className="flex shrink-0 gap-6 hover:[animation-play-state:paused]"
+                style={{
+                  animation: "uniMarqueeCarousel 36s linear infinite",
+                  display: "flex",
+                  width: "max-content",
+                  willChange: "transform"
+                }}
+              >
                 {Array.from({ length: 2 }).map((_, loopIdx) => (
                   <div key={loopIdx} className="flex shrink-0 gap-6">
                     {REPORT_CAROUSEL_ITEMS.map((item, i) => (
@@ -522,7 +534,9 @@ export default function LandingPage() {
               <div className="inline-flex items-center rounded-lg bg-red-100/50 dark:bg-red-900/20 px-3 py-1 text-sm font-medium text-red-800 dark:text-red-400 mb-6">
                 <ShieldCheck className="size-4 mr-2" /> Academic Integrity First
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-primary dark:text-white">Evidence-based generation, not fabricated information.</h2>
+              <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-primary dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors duration-200 cursor-default">
+                Evidence-based generation, not fabricated information.
+              </h2>
               <p className="text-lg text-muted-foreground mb-8">
                 UniReportTZ is not a generic chatbot. We prevent hallucinations through strict Retrieval-Augmented Generation (RAG). Every generated paragraph must be backed by scholarly sources or your uploaded evidence.
               </p>
@@ -556,7 +570,9 @@ export default function LandingPage() {
         {/* SUPPORTED REPORTS & UNIVERSITIES */}
         <section className="py-24 px-4 md:px-6">
           <div className="container mx-auto">
-             <h2 className="text-3xl font-bold font-heading text-center mb-16 text-primary dark:text-white">Supporting the Complete Academic Lifecycle</h2>
+             <h2 className="text-3xl font-bold font-heading text-center mb-16 text-primary dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors duration-200 cursor-default inline-block">
+               Supporting the Complete Academic Lifecycle
+             </h2>
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                <div className="group p-8 border border-border/80 rounded-2xl bg-white dark:bg-slate-900/60 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/50 motion-reduce:hover:transform-none">
@@ -582,7 +598,9 @@ export default function LandingPage() {
         <section className="py-24 px-4 md:px-6 bg-primary text-white text-center">
            <div className="container mx-auto max-w-3xl">
              <GraduationCap className="size-16 mx-auto mb-8 opacity-90 text-teal-400" />
-             <h2 className="text-3xl md:text-5xl font-bold font-heading mb-6 tracking-tight">Stop Formatting. Start Writing.</h2>
+             <h2 className="text-3xl md:text-5xl font-bold font-heading mb-6 tracking-tight hover:text-teal-300 transition-colors duration-200 cursor-default">
+               Stop Formatting. Start Writing.
+             </h2>
              <p className="text-lg md:text-xl text-primary-foreground/80 mb-10">Join students from all universities and higher learning institutions across Tanzania in writing smarter, publication-grade academic reports.</p>
              <Link href="/auth/register">
                <Button size="lg" className="h-14 px-10 text-lg bg-teal-500 hover:bg-teal-400 text-slate-900 border-none shadow-xl">

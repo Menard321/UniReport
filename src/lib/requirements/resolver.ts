@@ -64,7 +64,7 @@ export class RequirementsResolver {
     }
 
     // Conflict Check: Did the student request an incompatible citation style?
-    let finalCitation = defaultCitation;
+    const finalCitation = defaultCitation;
     if (input.requestedCitationStyle && input.requestedCitationStyle !== defaultCitation) {
       conflicts.push({
         field: "citationStyle",
@@ -84,8 +84,10 @@ export class RequirementsResolver {
     }
 
     const formatting: FormattingRules = {
-      fontFamily: (univId.includes("udsm") || univId.includes("sua")) ? "Times New Roman" : "Arial",
-      fontSizePt: 12,
+      fontFamily: "Times New Roman",
+      fontSizePt: 10,
+      headerFontSizePt: 14,
+      subHeaderFontSizePt: 12,
       lineSpacing: 1.5,
       marginInches: { top: 1.0, right: 1.0, bottom: 1.0, left: 1.5 }, // Left 1.5 inch for university binding
       citationStyle: finalCitation,

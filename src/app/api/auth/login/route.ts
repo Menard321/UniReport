@@ -34,22 +34,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Auto-provision default admin user if logging in with admin@unireport.tz for the first time
-    if (!user && identifier.toLowerCase() === "admin@unireport.tz") {
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash("admin123", salt);
-      user = await db.user.create({
-        data: {
-          email: "admin@unireport.tz",
-          name: "System Administrator",
-          passwordHash,
-          role: "UNIREPORT_ADMIN",
-          subscription: {
-            create: { tier: "INSTITUTIONAL" }
-          }
-        }
-      });
-    }
+
 
     if (!user) {
       return NextResponse.json({ error: "Invalid email, phone number, or password" }, { status: 401 });
@@ -79,8 +64,9 @@ export async function POST(req: Request) {
       }
     }, { status: 200 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[LOGIN_ERROR]", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

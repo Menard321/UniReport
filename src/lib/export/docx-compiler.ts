@@ -49,9 +49,9 @@ export class DocxCompilerEngine {
     const formattedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     
     const fontFamily = options.formattingRules?.font?.family || "Times New Roman";
-    const bodySize = options.formattingRules?.font?.body_size || 12;
-    const h1Size = options.formattingRules?.font?.heading_1_size || 16;
-    const h2Size = options.formattingRules?.font?.heading_2_size || 13;
+    const bodySize = options.formattingRules?.font?.body_size || 10;
+    const h1Size = options.formattingRules?.font?.heading_1_size || 14;
+    const h2Size = options.formattingRules?.font?.heading_2_size || 12;
     const lineSpacing = options.formattingRules?.spacing?.line_spacing || 1.5;
     const paragraphAfter = options.formattingRules?.spacing?.paragraph_after || 8;
     
@@ -63,13 +63,13 @@ export class DocxCompilerEngine {
 
     // Convert Markdown headings to Word HTML with institutional styling & chapter page-breaks
     const bodyHtml = options.content
-      .replace(/^# (.*$)/gim, `<h1 style="font-family: ${fontFamily}, Times, serif; color: #0f172a; font-size: ${h1Size}pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; border-bottom: 1.5pt solid #0f172a; padding-bottom: 4pt; text-transform: uppercase; page-break-before: always; mso-break-type: section-break;">$1</h1>`)
-      .replace(/^## (.*$)/gim, `<h2 style="font-family: ${fontFamily}, Times, serif; color: #1e293b; font-size: ${h2Size}pt; font-weight: bold; margin-top: 18pt; margin-bottom: 8pt; page-break-before: always; mso-break-type: section-break;">$1</h2>`)
-      .replace(/^### (.*$)/gim, `<h3 style="font-family: ${fontFamily}, Times, serif; color: #334155; font-size: ${bodySize}pt; font-weight: bold; margin-top: 14pt; margin-bottom: 6pt;">$1</h3>`)
-      .replace(/^#### (.*$)/gim, `<h4 style="font-family: ${fontFamily}, Times, serif; color: #475569; font-size: ${bodySize - 1}pt; font-weight: bold; font-style: italic; margin-top: 10pt; margin-bottom: 4pt;">$1</h4>`)
+      .replace(/^# (.*$)/gim, `<h1 style="font-family: '${fontFamily}', Times, serif; color: #0f172a; font-size: ${h1Size}pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; border-bottom: 1.5pt solid #0f172a; padding-bottom: 4pt; text-transform: uppercase; page-break-before: always; mso-break-type: section-break;">$1</h1>`)
+      .replace(/^## (.*$)/gim, `<h2 style="font-family: '${fontFamily}', Times, serif; color: #1e293b; font-size: ${h2Size}pt; font-weight: bold; margin-top: 18pt; margin-bottom: 8pt; page-break-before: always; mso-break-type: section-break;">$1</h2>`)
+      .replace(/^### (.*$)/gim, `<h3 style="font-family: '${fontFamily}', Times, serif; color: #334155; font-size: ${h2Size}pt; font-weight: bold; margin-top: 14pt; margin-bottom: 6pt;">$1</h3>`)
+      .replace(/^#### (.*$)/gim, `<h4 style="font-family: '${fontFamily}', Times, serif; color: #475569; font-size: ${bodySize}pt; font-weight: bold; font-style: italic; margin-top: 10pt; margin-bottom: 4pt;">$1</h4>`)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n\n/g, `</p><p style="font-family: ${fontFamily}, Times, serif; font-size: ${bodySize}pt; line-height: ${lineSpacing}; margin-bottom: ${paragraphAfter}pt; text-align: justify; text-justify: inter-ideograph;">`)
+      .replace(/\n\n/g, `</p><p style="font-family: '${fontFamily}', Times, serif; font-size: ${bodySize}pt; line-height: ${lineSpacing}; margin-bottom: ${paragraphAfter}pt; text-align: justify; text-justify: inter-ideograph;">`)
       .replace(/\n/g, '<br/>');
 
     const htmlDocument = `
@@ -180,10 +180,10 @@ export class DocxCompilerEngine {
     const formattedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     
     const fontFamily = options.formattingRules?.font?.family || "Times New Roman";
-    const bodySize = options.formattingRules?.font?.body_size || 12;
-    const h1Size = options.formattingRules?.font?.heading_1_size || 16;
-    const h2Size = options.formattingRules?.font?.heading_2_size || 13;
-    const lineSpacing = options.formattingRules?.spacing?.line_spacing || 1.6;
+    const bodySize = options.formattingRules?.font?.body_size || 10;
+    const h1Size = options.formattingRules?.font?.heading_1_size || 14;
+    const h2Size = options.formattingRules?.font?.heading_2_size || 12;
+    const lineSpacing = options.formattingRules?.spacing?.line_spacing || 1.5;
     const paragraphAfter = options.formattingRules?.spacing?.paragraph_after || 8;
 
     const marginTop = options.formattingRules?.margins?.top ?? 1.0;
@@ -320,8 +320,8 @@ export class DocxCompilerEngine {
       margin-bottom: 20mm;
     }
     .chapter-title {
-      font-family: Arial, sans-serif;
-      font-size: 16pt;
+      font-family: "${fontFamily}", Times, serif;
+      font-size: ${h1Size}pt;
       font-weight: bold;
       text-transform: uppercase;
       color: #0f172a;
@@ -333,24 +333,36 @@ export class DocxCompilerEngine {
       break-before: page;
     }
     .sub-heading {
-      font-family: Arial, sans-serif;
-      font-size: 13pt;
+      font-family: "${fontFamily}", Times, serif;
+      font-size: ${h2Size}pt;
       font-weight: bold;
       color: #1e293b;
       margin-top: 16pt;
       margin-bottom: 8pt;
     }
     .section-heading {
-      font-family: Arial, sans-serif;
-      font-size: 12pt;
+      font-family: "${fontFamily}", Times, serif;
+      font-size: ${h2Size}pt;
       font-weight: bold;
       color: #334155;
       margin-top: 12pt;
       margin-bottom: 6pt;
     }
+    .sub-section-heading {
+      font-family: "${fontFamily}", Times, serif;
+      font-size: ${bodySize}pt;
+      font-weight: bold;
+      font-style: italic;
+      color: #475569;
+      margin-top: 10pt;
+      margin-bottom: 4pt;
+    }
     .paragraph {
+      font-family: "${fontFamily}", Times, serif;
+      font-size: ${bodySize}pt;
       text-align: justify;
-      margin-bottom: 12pt;
+      margin-bottom: 10pt;
+      line-height: ${lineSpacing};
       text-indent: 10mm;
     }
     .ascii-diagram {

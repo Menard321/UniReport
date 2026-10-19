@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AcademicAlerts from "@/lib/sweetalert";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,11 +38,14 @@ export default function RegisterPage() {
         throw new Error(data.error || "Registration failed");
       }
 
+      await AcademicAlerts.success("Account Created!", "Welcome to UniReportTZ. Redirecting to your academic workspace...");
+
       // Success, route to dashboard
       router.push("/dashboard");
       router.refresh();
     } catch (err: any) {
       setError(err.message);
+      AcademicAlerts.error("Registration Failed", err.message);
     } finally {
       setLoading(false);
     }

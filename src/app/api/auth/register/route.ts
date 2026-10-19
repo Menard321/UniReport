@@ -47,8 +47,8 @@ export async function POST(req: Request) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Determine role based on email domain / prefix
-    const role = (cleanEmail.endsWith("@unireport.tz") || cleanEmail.startsWith("admin@"))
+    // Determine role based on internal email domain only
+    const role = cleanEmail.endsWith("@unireport.tz")
       ? "UNIREPORT_ADMIN"
       : "STUDENT";
 
@@ -82,8 +82,20 @@ export async function POST(req: Request) {
       }
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[REGISTER_ERROR]", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+
+    // Handle Prisma unique constraint violation (code P2002)
+    if (error && typeof error === "object" && error.code === "P2002") {
+      const target = error.meta?.target;
+      const targetField = Array.isArray(target) ? target.join(", ") : target || "email or phone";
+      return NextResponse.json(
+        { error: `An account with this ${targetField} already exists.` },
+        { status: 409 }
+      );
+    }
+
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

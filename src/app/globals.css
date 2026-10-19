@@ -116,3 +116,69 @@ body {
     border-color: var(--border);
   }
 }
+
+/* Academic Typography Standard (Times New Roman) */
+.font-academic {
+  font-family: "Times New Roman", Times, Georgia, serif;
+}
+
+/* Horizontal Continuous Marquee Animations */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee_reverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+@keyframes marquee_carousel {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+.animate-marquee-reverse-track {
+  display: flex;
+  width: max-content;
+  animation: marquee_reverse 44s linear infinite;
+}
+
+.animate-marquee-carousel-track {
+  display: flex;
+  width: max-content;
+  animation: marquee_carousel 40s linear infinite;
+}
+
+.animate-marquee-track:hover,
+.animate-marquee-reverse-track:hover,
+.animate-marquee-carousel-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-track,
+  .animate-marquee-reverse-track,
+  .animate-marquee-carousel-track {
+    animation-play-state: paused;
+  }
+}
+

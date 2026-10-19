@@ -44,7 +44,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Email is already taken" }, { status: 409 });
     }
 
-    let normalizedPhone = phone ? phone.trim() : null;
+    const normalizedPhone = phone ? phone.trim() : null;
     if (normalizedPhone) {
       const existingPhone = await db.user.findFirst({
         where: { phone: normalizedPhone, NOT: { id: session.userId as string } }

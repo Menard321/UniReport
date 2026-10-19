@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import AcademicAlerts from "@/lib/sweetalert";
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -114,18 +115,6 @@ export default function DocumentEditorPage() {
     fetchDoc();
   }, [docId]);
 
-  // Keyboard shortcut Ctrl+S / Cmd+S
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [title, content, docId]);
-
   // 2. Save document to API
   const handleSave = async () => {
     if (!docId || isSaving) return;
@@ -144,16 +133,29 @@ export default function DocumentEditorPage() {
         setHasUnsavedChanges(false);
         const now = new Date();
         setLastSavedTime(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        AcademicAlerts.toast("Document saved to cloud!", "success");
       } else {
-        alert("Failed to save changes. Please try again.");
+        AcademicAlerts.error("Save Failed", "Failed to save changes. Please try again.");
       }
     } catch (e) {
       console.error("Save error:", e);
-      alert("Error saving document to cloud.");
+      AcademicAlerts.error("Cloud Save Error", "Error saving document to cloud.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  // Keyboard shortcut Ctrl+S / Cmd+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [title, content, docId, isSaving]);
 
   // 3. Insert Image / Figure into Content
   const handleTriggerImageUpload = () => {
@@ -169,7 +171,7 @@ export default function DocumentEditorPage() {
 
     // Check size (max 8MB for Data URL performance)
     if (file.size > 8 * 1024 * 1024) {
-      alert("Please select an image smaller than 8MB.");
+      AcademicAlerts.warning("File Too Large", "Please select an image smaller than 8MB.");
       return;
     }
 
@@ -208,7 +210,7 @@ export default function DocumentEditorPage() {
       reader.readAsDataURL(file);
     } catch (err) {
       console.error("Image read error:", err);
-      alert("Failed to process image file.");
+      AcademicAlerts.error("Image Error", "Failed to process image file.");
       setIsUploadingImage(false);
     }
   };
@@ -283,10 +285,10 @@ export default function DocumentEditorPage() {
           executePdfDownload();
         }, 300);
       } else {
-        alert(data.error || "Payment verification failed. Please try again.");
+        AcademicAlerts.error("Payment Verification Failed", data.error || "Please try again.");
       }
     } catch (e) {
-      alert("Network error processing payment. Please retry.");
+      AcademicAlerts.error("Payment Error", "Network error processing payment. Please retry.");
     } finally {
       setIsProcessingPayment(false);
     }

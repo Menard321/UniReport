@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TOOLS } from "@/lib/tools-config";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import AcademicAlerts from "@/lib/sweetalert";
 
 export default function ToolPage() {
   const params = useParams();
@@ -188,7 +189,7 @@ export default function ToolPage() {
 
   const handleGenerateTopics = () => {
     if (!progField.trim() || !interestDomain.trim()) {
-      alert("Please enter your Degree Programme and Area of Interest.");
+      AcademicAlerts.warning("Fields Required", "Please enter your Degree Programme and Area of Interest.");
       return;
     }
     const promptText = `Degree Programme / Discipline: ${progField}
@@ -202,7 +203,7 @@ Please generate 3 to 4 defense-ready, publication-grade academic research topic 
 
   const handleGenerateLitReview = () => {
     if (!lrTopic.trim()) {
-      alert("Please enter your Approved Research Title / Topic.");
+      AcademicAlerts.warning("Topic Required", "Please enter your Approved Research Title / Topic.");
       return;
     }
     const promptText = `Approved Research Topic: ${lrTopic}
@@ -221,7 +222,7 @@ Please synthesize an exhaustive Chapter 2 Literature Review adhering to universi
 
   const handleGenerateMethodology = () => {
     if (!mQuestions.trim()) {
-      alert("Please enter your Research Questions or Hypotheses.");
+      AcademicAlerts.warning("Questions Required", "Please enter your Research Questions or Hypotheses.");
       return;
     }
     const promptText = `Research Nature: ${mResearchType}
@@ -235,7 +236,7 @@ Please architect a rigorous, defense-ready Chapter 3 Methodology adhering to Tan
 
   const handleGenerateResearchGap = () => {
     if (!rgDiscipline.trim() || !rgProblem.trim()) {
-      alert("Please enter your Academic Discipline and Problem Domain.");
+      AcademicAlerts.warning("Information Required", "Please enter your Academic Discipline and Problem Domain.");
       return;
     }
     const promptText = `Academic Discipline / Field: ${rgDiscipline}
@@ -249,7 +250,7 @@ Please conduct an exhaustive Tri-Factor Research Gap Analysis (Empirical, Theore
 
   const handleGenerateSlides = () => {
     if (!sgContent.trim()) {
-      alert("Please paste your chapter content, findings, or executive summary.");
+      AcademicAlerts.warning("Content Required", "Please paste your chapter content, findings, or executive summary.");
       return;
     }
     const promptText = `Defense Presentation Nature: ${sgType}
@@ -264,7 +265,7 @@ Please generate an executive defense presentation slide deck outline with Slide 
 
   const handleGenerateDiagram = () => {
     if (!dcVariables.trim()) {
-      alert("Please enter the variables or system components to model.");
+      AcademicAlerts.warning("Variables Required", "Please enter the variables or system components to model.");
       return;
     }
     const promptText = `Diagram Category: ${dcCategory}
@@ -278,7 +279,7 @@ Please output a valid, clean Mermaid.js diagram code block, followed by an acade
 
   const handleGenerateReferences = () => {
     if (!rmRawInput.trim()) {
-      alert("Please enter the messy references, DOI, or publication text to format.");
+      AcademicAlerts.warning("References Required", "Please enter the messy references, DOI, or publication text to format.");
       return;
     }
     const promptText = `Target Citation Standard: ${rmStyle}
@@ -382,31 +383,31 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
   const handleProcessPayment = async () => {
     if (paymentMode === "mobile") {
       if (!phoneNumber.match(/^(06|07)\d{8}$/)) {
-        alert("Please enter a valid Tanzanian phone number (e.g. 0627204980 / 0747461380)");
+        AcademicAlerts.warning("Invalid Mobile Number", "Please enter a valid Tanzanian phone number (e.g. 0627204980 / 0747461380)");
         return;
       }
     } else {
       if (showSimBankingFallback) {
         if (!bankReference.trim()) {
-          alert("Please enter your transaction reference number.");
+          AcademicAlerts.warning("Reference Required", "Please enter your transaction reference number.");
           return;
         }
       } else {
         const cleanCard = cardNumber.replace(/\s/g, "");
         if (cleanCard.length !== 16) {
-          alert("Please enter a valid 16-digit card number.");
+          AcademicAlerts.warning("Invalid Card Number", "Please enter a valid 16-digit card number.");
           return;
         }
         if (!cardName.trim()) {
-          alert("Please enter the cardholder name.");
+          AcademicAlerts.warning("Cardholder Name Required", "Please enter the cardholder name.");
           return;
         }
         if (cardExpiry.length !== 5) {
-          alert("Please enter a valid expiration date (MM/YY).");
+          AcademicAlerts.warning("Invalid Expiry", "Please enter a valid expiration date (MM/YY).");
           return;
         }
         if (cardCvv.length < 3) {
-          alert("Please enter a valid 3-digit CVV / security code.");
+          AcademicAlerts.warning("Invalid CVV", "Please enter a valid 3-digit CVV / security code.");
           return;
         }
       }
@@ -445,10 +446,10 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
           content: output
         });
       } else {
-        alert(data.error || "Payment verification failed. Please try again.");
+        AcademicAlerts.error("Payment Verification Failed", data.error || "Please try again.");
       }
     } catch (e) {
-      alert("Payment failed. Please try again.");
+      AcademicAlerts.error("Payment Failed", "Payment processing failed. Please try again.");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1456,7 +1457,7 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
                           setShowPaymentModal(true);
                         } else {
                           navigator.clipboard.writeText(output);
-                          alert("Slide deck outline copied to clipboard!");
+                          AcademicAlerts.toast("Slide deck outline copied to clipboard!", "success");
                         }
                       }}
                     >
@@ -1511,7 +1512,7 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
                           setShowPaymentModal(true);
                         } else {
                           navigator.clipboard.writeText(output);
-                          alert("References copied to clipboard!");
+                          AcademicAlerts.toast("References copied to clipboard!", "success");
                         }
                       }}
                     >
@@ -1537,7 +1538,7 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
                           setShowPaymentModal(true);
                         } else {
                           navigator.clipboard.writeText(output);
-                          alert("Milestone roadmap copied to clipboard!");
+                          AcademicAlerts.toast("Milestone roadmap copied to clipboard!", "success");
                         }
                       }}
                     >
@@ -1558,7 +1559,7 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
                           onClick={() => {
                             const code = extractMermaidCode(output) || output;
                             navigator.clipboard.writeText(code);
-                            alert("Mermaid code copied to clipboard!");
+                            AcademicAlerts.toast("Mermaid code copied to clipboard!", "success");
                           }}
                         >
                           <Copy className="size-3 mr-1" /> Copy Code

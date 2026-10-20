@@ -7,32 +7,35 @@ export function StartupLoader() {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
-  const [progress, setProgress] = useState(15);
+  const [progress, setProgress] = useState(4);
   const [statusMessage, setStatusMessage] = useState("Connecting to Tanzania Higher Education Portal...");
 
   useEffect(() => {
     setMounted(true);
 
     const stages = [
-      { at: 25, text: "Loading Tanzanian University Catalog (UDSM, UDOM, SUA, DIT, MUST)..." },
-      { at: 50, text: "Applying Institutional Guidelines (Times New Roman 10pt / 14pt)..." },
-      { at: 75, text: "Calibrating TCU Official Chapter Margins & Binding Standards..." },
-      { at: 92, text: "Verifying Academic Citation Modules (APA 7th, IEEE, Harvard)..." },
+      { at: 20, text: "Loading Tanzanian University Catalog (UDSM, UDOM, SUA, DIT, MUST)..." },
+      { at: 45, text: "Applying Institutional Guidelines (Times New Roman 10pt / 14pt)..." },
+      { at: 70, text: "Calibrating TCU Official Chapter Margins & Binding Standards..." },
+      { at: 88, text: "Verifying Academic Citation Modules (APA 7th, IEEE, Harvard)..." },
       { at: 100, text: "Academic Workspace Ready" }
     ];
 
+    // Smooth ~5.2 second loading sequence (50ms ticks with smooth increments)
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           setTimeout(() => {
             setFading(true);
-            setTimeout(() => setVisible(false), 600);
-          }, 400);
+            setTimeout(() => setVisible(false), 700);
+          }, 650);
           return 100;
         }
 
-        const increment = Math.floor(Math.random() * 9) + 7;
+        const rand = Math.random();
+        // Average ~0.95% per tick -> 96 / 0.95 * 50ms ~= 5,050ms (at least 5 seconds)
+        const increment = rand < 0.65 ? 1 : rand < 0.9 ? 2 : 0;
         const next = Math.min(prev + increment, 100);
 
         const activeStage = stages.find((s) => next >= s.at && prev < s.at);
@@ -45,14 +48,14 @@ export function StartupLoader() {
           setStatusMessage("Academic Workspace Ready");
           setTimeout(() => {
             setFading(true);
-            setTimeout(() => setVisible(false), 600);
-          }, 450);
+            setTimeout(() => setVisible(false), 700);
+          }, 650);
           return 100;
         }
 
         return next;
       });
-    }, 85);
+    }, 50);
 
     return () => clearInterval(interval);
   }, []);

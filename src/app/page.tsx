@@ -249,10 +249,6 @@ export default function LandingPage() {
         <section className="py-20 md:py-28 bg-white dark:bg-slate-950 px-4 md:px-6">
           <div className="container mx-auto max-w-5xl">
             <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-semibold mb-3">
-                <Sparkles className="size-3.5 text-teal-600" />
-                <span>Deterministic Lifecycle Execution</span>
-              </div>
               <h2 className="text-3xl md:text-4xl font-bold font-heading mb-3 text-primary dark:text-white">
                 How UniReportTZ Works
               </h2>

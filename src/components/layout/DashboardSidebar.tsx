@@ -20,12 +20,18 @@ import {
   CreditCard,
   Settings,
   HelpCircle,
-  Crown
+  Crown,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function DashboardSidebar({ mobileOpen = false, onClose }: DashboardSidebarProps = {}) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -76,11 +82,11 @@ export function DashboardSidebar() {
     },
   ];
 
-  return (
-    <aside className="w-64 border-r bg-slate-50/70 dark:bg-slate-900/60 hidden md:flex flex-col min-h-screen">
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-slate-50/95 dark:bg-slate-900/95">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-border/60 bg-white dark:bg-slate-950" suppressHydrationWarning>
-        <Link href="/dashboard" className="flex items-center gap-2.5" suppressHydrationWarning>
+      <div className="h-16 flex items-center justify-between px-6 border-b border-border/60 bg-white dark:bg-slate-950" suppressHydrationWarning>
+        <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose} suppressHydrationWarning>
           <div className="relative size-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0" suppressHydrationWarning>
             <Image
               src="/logo.png"
@@ -95,6 +101,15 @@ export function DashboardSidebar() {
             UniReportTZ
           </span>
         </Link>
+        {onClose && (
+          <button 
+            onClick={onClose} 
+            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:bg-muted"
+            aria-label="Close sidebar"
+          >
+            <X className="size-5" />
+          </button>
+        )}
       </div>
       
       {/* Navigation Links */}
@@ -111,7 +126,7 @@ export function DashboardSidebar() {
                   : false;
 
                 return (
-                  <Link key={link.href} href={link.href}>
+                  <Link key={link.href} href={link.href} onClick={onClose}>
                     <span
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold transition-all",
@@ -142,13 +157,36 @@ export function DashboardSidebar() {
             <div className="bg-teal-600 dark:bg-teal-400 h-1.5 rounded-full" style={{ width: "40%" }}></div>
           </div>
           <p className="text-[10px] text-muted-foreground font-medium mb-3">2 of 5 Projects Used</p>
-          <Link href="/dashboard/billing">
+          <Link href="/dashboard/billing" onClick={onClose}>
             <Button size="sm" className="w-full text-xs h-7 bg-teal-600 hover:bg-teal-700 text-white border-none shadow-sm">
               Upgrade to Pro
             </Button>
           </Link>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="w-64 border-r bg-slate-50/70 dark:bg-slate-900/60 hidden md:flex flex-col h-screen shrink-0 overflow-hidden">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs" 
+            onClick={onClose} 
+            aria-hidden="true"
+          />
+          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 flex flex-col animate-in slide-in-from-left duration-200">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

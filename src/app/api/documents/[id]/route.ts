@@ -81,3 +81,38 @@ export async function PUT(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+// DELETE DOCUMENT
+export async function DELETE(req: Request, { params }: RouteParams) {
+  try {
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: "Document ID is required" }, { status: 400 });
+    }
+
+    const existingDoc = await db.document.findFirst({
+      where: {
+        id,
+        userId: session.userId as string,
+      },
+    });
+
+    if (!existingDoc) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    await db.document.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: "Document deleted successfully" }, { status: 200 });
+  } catch (error) {
+    console.error("[DOCUMENT_DELETE_ERROR]", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

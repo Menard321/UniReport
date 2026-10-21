@@ -62,7 +62,7 @@ export default function AdminGuidelinesPage() {
       ],
       formatting: {
         font: "Times New Roman",
-        fontSize: "12 pt",
+        fontSize: "10 pt Body (14pt / 12pt Headings)",
         lineSpacing: "1.5 Lines",
         leftMargin: "1.5 inches (Binding)",
         otherMargins: "1.0 inch"
@@ -86,8 +86,8 @@ export default function AdminGuidelinesPage() {
         "Chapter 5: Recommendations & Conclusion"
       ],
       formatting: {
-        font: "Arial",
-        fontSize: "12 pt",
+        font: "Times New Roman",
+        fontSize: "10 pt Body (14pt / 12pt Headings)",
         lineSpacing: "1.5 Lines",
         leftMargin: "1.25 inches",
         otherMargins: "1.0 inch"
@@ -113,7 +113,7 @@ export default function AdminGuidelinesPage() {
       ],
       formatting: {
         font: "Times New Roman",
-        fontSize: "12 pt",
+        fontSize: "10 pt Body (14pt / 12pt Headings)",
         lineSpacing: "2.0 (Double Spaced)",
         leftMargin: "1.5 inches",
         otherMargins: "1.0 inch"
@@ -139,7 +139,7 @@ export default function AdminGuidelinesPage() {
       ],
       formatting: {
         font: "Times New Roman",
-        fontSize: "12 pt",
+        fontSize: "10 pt Body (14pt / 12pt Headings)",
         lineSpacing: "1.5 Lines",
         leftMargin: "1.5 inches",
         otherMargins: "1.0 inch"

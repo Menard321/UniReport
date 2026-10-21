@@ -54,6 +54,7 @@ import {
   UniversityTemplateEngine,
   InstitutionalTemplateBlueprint
 } from "@/lib/templates/university-template-engine";
+import AcademicAlerts from "@/lib/sweetalert";
 
 interface TemplateSection {
   id: string;
@@ -111,10 +112,12 @@ export default function FieldReportGuidedPage() {
   const [stepError, setStepError] = useState("");
   const [canvasViewMode, setCanvasViewMode] = useState<"formatted" | "raw">("formatted");
 
-  // CUSTOM TEMPLATE UPLOAD STATE
+  // CUSTOM TEMPLATE UPLOAD & URL STATE
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [customSections, setCustomSections] = useState<Array<{ id: string; title: string; description: string; order: number }>>([]);
   const [isParsingFile, setIsParsingFile] = useState(false);
+  const [templateUrlInput, setTemplateUrlInput] = useState("");
+  const [urlFetchError, setUrlFetchError] = useState("");
   const [uploadWarning, setUploadWarning] = useState<string | null>(null);
 
   // STUDENT EVIDENCE / LOGBOOK UPLOAD STATE
@@ -159,15 +162,6 @@ export default function FieldReportGuidedPage() {
   // INSTITUTIONAL TEMPLATE BLUEPRINT
   const activeBlueprint: InstitutionalTemplateBlueprint = UniversityTemplateEngine.resolveTemplate(selectedUniShortName);
 
-  // FETCH SERVER-SIDE TEMPLATE ONLY WHEN A UNIVERSITY IS SELECTED
-  useEffect(() => {
-    if (selectedUniShortName) {
-      resolveUniversityTemplate(selectedUniShortName);
-    } else {
-      setResolvedTemplate(null);
-    }
-  }, [selectedUniShortName]);
-
   const resolveUniversityTemplate = async (shortName: string) => {
     if (!shortName) return;
     setIsLoadingTemplate(true);
@@ -183,6 +177,26 @@ export default function FieldReportGuidedPage() {
       setIsLoadingTemplate(false);
     }
   };
+
+  // FETCH SERVER-SIDE TEMPLATE ONLY WHEN A UNIVERSITY IS SELECTED
+  useEffect(() => {
+    if (selectedUniShortName) {
+      resolveUniversityTemplate(selectedUniShortName);
+    } else {
+      setResolvedTemplate(null);
+    }
+  }, [selectedUniShortName]);
+
+  // INITIAL URL PARAMETERS CHECK (?institution=UDSM)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const inst = params.get("institution");
+      if (inst) {
+        handleUniversityChange(inst);
+      }
+    }
+  }, []);
 
   // UNIVERSITY SELECTION HANDLER (RESETS AND RELOADS COLLEGES & COURSES)
   const handleUniversityChange = (shortName: string) => {
@@ -335,6 +349,7 @@ export default function FieldReportGuidedPage() {
 
     setUploadedFileName(file.name);
     setIsParsingFile(true);
+    setUrlFetchError("");
 
     try {
       const formData = new FormData();
@@ -348,6 +363,7 @@ export default function FieldReportGuidedPage() {
       const data = await res.json();
       if (data.success && data.sections && data.sections.length > 0) {
         setCustomSections(data.sections);
+        AcademicAlerts.toast(`Template Loaded: ${file.name} (${data.sections.length} Chapters)`, "success");
         setUploadWarning(data.warningMessage || null);
       } else {
         // Fallback default custom chapters
@@ -363,6 +379,66 @@ export default function FieldReportGuidedPage() {
     } catch (err) {
       console.error("Failed to parse uploaded template:", err);
       setUploadWarning("Could not parse file. Standard chapters provided for review.");
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  // URL TEMPLATE FETCH & PARSER
+  const handleUrlFetch = async () => {
+    if (!templateUrlInput.trim()) return;
+    setIsParsingFile(true);
+    setUrlFetchError("");
+
+    try {
+      const res = await fetch("/api/templates/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: templateUrlInput.trim() })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.sections && data.sections.length > 0) {
+        setCustomSections(data.sections);
+        setUploadedFileName(data.fileName || "Custom University Template URL");
+        AcademicAlerts.toast(`Template fetched from URL (${data.sections.length} Chapters)`, "success");
+      } else {
+        setUrlFetchError(data.error || "Could not parse document structure from the provided URL.");
+        AcademicAlerts.error("Template URL Error", data.error || "Could not parse document structure from URL.");
+      }
+    } catch (err: any) {
+      setUrlFetchError(err.message || "Failed to reach template URL.");
+      AcademicAlerts.error("Template URL Error", err.message || "Failed to reach template URL.");
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  // LOCAL TEMPLATE FILE LOADER (FROM templates/ REPOSITORY)
+  const handleLocalTemplateSelect = async (filename: string) => {
+    if (!filename) return;
+    setIsParsingFile(true);
+    setUrlFetchError("");
+
+    try {
+      const res = await fetch("/api/templates/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateFile: filename })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.sections && data.sections.length > 0) {
+        setCustomSections(data.sections);
+        setUploadedFileName(filename);
+        AcademicAlerts.success("Official Template Activated", `Loaded ${filename} with official university chapters and Times New Roman 10pt standards.`);
+      } else {
+        setUrlFetchError(data.error || "Could not parse document structure from template.");
+        AcademicAlerts.error("Template Error", data.error || "Could not parse template.");
+      }
+    } catch (err: any) {
+      setUrlFetchError(err.message || "Failed to load local template file.");
+      AcademicAlerts.error("Template Error", err.message || "Failed to load local template file.");
     } finally {
       setIsParsingFile(false);
     }
@@ -775,7 +851,7 @@ Follow these strict writing style instructions:
                   </span>
                 </div>
                 <p className="text-[11px] text-teal-800 dark:text-teal-300">
-                  {activeBlueprint.chapters.length} Official Chapter Sections • Times New Roman 12pt Standard • Decimal Headings • Visual Diagrams & Comparative Tables
+                  {activeBlueprint.chapters.length} Official Chapter Sections • Times New Roman (10pt Body, 14pt/12pt Headings) • Decimal Headings • Visual Diagrams & Comparative Tables
                 </p>
               </div>
             )}
@@ -1098,12 +1174,12 @@ Follow these strict writing style instructions:
               </div>
             )}
 
-            {/* 1. CUSTOM TEMPLATE UPLOAD */}
-            <div className="p-4 rounded-xl border border-dashed border-teal-300 dark:border-teal-800 bg-teal-50/40 dark:bg-teal-950/20 space-y-2.5">
+            {/* 1. CUSTOM TEMPLATE UPLOAD & URL */}
+            <div className="p-4 rounded-xl border border-dashed border-teal-300 dark:border-teal-800 bg-teal-50/40 dark:bg-teal-950/20 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase text-teal-900 dark:text-teal-200 flex items-center gap-2 cursor-pointer">
                   <Upload className="size-4 text-teal-600 dark:text-teal-400" />
-                  1. University Guideline / Sample Template (.PDF / .DOCX / .TXT)
+                  1. University Guideline / Sample Template (.PDF / .DOCX / .TXT / URL)
                 </label>
                 {uploadedFileName && (
                   <button
@@ -1116,17 +1192,75 @@ Follow these strict writing style instructions:
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Optional: Upload your university&apos;s official attachment guideline or sample report. Our engine extracts the exact chapter headings.
+                Optional: Upload your university&apos;s official attachment guideline or provide a link. Our engine extracts the exact chapter headings and Times New Roman (10pt/14pt/12pt) hierarchy automatically.
               </p>
-              <input
-                type="file"
-                accept=".txt,.doc,.docx,.pdf"
-                onChange={handleFileUpload}
-                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
-              />
+
+              {/* Option 1: File Upload */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Option A: Upload File (.DOCX / .PDF / .TXT)</span>
+                <input
+                  type="file"
+                  accept=".txt,.doc,.docx,.pdf"
+                  onChange={handleFileUpload}
+                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
+                />
+              </div>
+
+              {/* Option 2: Template URL */}
+              <div className="space-y-1 pt-1 border-t border-teal-200/50 dark:border-teal-800/40">
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Option B: Paste Template / Guideline URL</span>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://example.university.edu/guidelines/field_report_template.docx"
+                    value={templateUrlInput}
+                    onChange={(e) => {
+                      setTemplateUrlInput(e.target.value);
+                      setUrlFetchError("");
+                    }}
+                    className="flex-1 p-2 rounded-lg border text-xs bg-background"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleUrlFetch}
+                    disabled={isParsingFile || !templateUrlInput.trim()}
+                    className="text-xs shrink-0"
+                  >
+                    {isParsingFile ? <Loader2 className="size-3 animate-spin mr-1" /> : <ExternalLink className="size-3 mr-1" />}
+                    Fetch Template
+                  </Button>
+                </div>
+                {urlFetchError && (
+                  <p className="text-xs text-red-500 font-medium flex items-center gap-1 pt-1">
+                    <X className="size-3.5" /> {urlFetchError}
+                  </p>
+                )}
+              </div>
+
+              {/* Option 3: Pre-loaded Official Templates from templates/ */}
+              <div className="space-y-1 pt-1 border-t border-teal-200/50 dark:border-teal-800/40">
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Option C: Select Pre-loaded Institutional File (templates/ folder)</span>
+                <select
+                  disabled={isParsingFile}
+                  onChange={(e) => handleLocalTemplateSelect(e.target.value)}
+                  className="w-full p-2 rounded-lg border text-xs bg-background"
+                  defaultValue=""
+                >
+                  <option value="">-- Choose Official University File From Repository --</option>
+                  <option value="UDSM.docx">University of Dar es Salaam — UDSM.docx (Word Document)</option>
+                  <option value="ARTHI IT REPORT 2_110443.pdf">Ardhi University — ARTHI IT REPORT 2_110443.pdf</option>
+                  <option value="CBE FIELD REPORT FORMAT .pdf">College of Business Education — CBE FIELD REPORT FORMAT .pdf</option>
+                  <option value="IFM FIELD REPORT SAMPLE.pdf">Institute of Finance Management — IFM FIELD REPORT SAMPLE.pdf</option>
+                  <option value="NIT FIELD REPORT.pdf">National Institute of Transport — NIT FIELD REPORT.pdf</option>
+                  <option value="FIELD REPORT SAMPLE.pdf">National Higher Learning Benchmark — FIELD REPORT SAMPLE.pdf</option>
+                </select>
+              </div>
+
               {isParsingFile && (
-                <p className="text-xs text-teal-600 flex items-center gap-1.5 font-medium">
-                  <Loader2 className="size-3.5 animate-spin" /> Parsing document structure and extracting chapters...
+                <p className="text-xs text-teal-600 flex items-center gap-1.5 font-medium pt-1">
+                  <Loader2 className="size-3.5 animate-spin" /> Parsing document structure, section arrangement, and chapter headings...
                 </p>
               )}
               {uploadedFileName && !isParsingFile && (

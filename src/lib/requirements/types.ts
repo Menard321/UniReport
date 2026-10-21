@@ -40,6 +40,8 @@ export interface SectionRequirement {
 export interface FormattingRules {
   fontFamily: string;
   fontSizePt: number;
+  headerFontSizePt?: number;
+  subHeaderFontSizePt?: number;
   lineSpacing: number;
   marginInches: { top: number; right: number; bottom: number; left: number };
   citationStyle: "APA7" | "IEEE" | "HARVARD" | "CHICAGO" | "VANCOUVER" | "TURABIAN";

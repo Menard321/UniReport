@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AcademicAlerts from "@/lib/sweetalert";
 
 // UniReportTZ Login Page
 export default function LoginPage() {
@@ -35,12 +36,15 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
+      AcademicAlerts.toast("Signed in successfully!", "success");
+
       // Success, route to designated dashboard or admin portal
       const destination = data.redirectTo || (data.user?.role === "UNIREPORT_ADMIN" ? "/admin" : "/dashboard");
       router.push(destination);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
+      AcademicAlerts.error("Login Failed", err.message);
     } finally {
       setLoading(false);
     }

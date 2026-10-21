@@ -157,7 +157,7 @@ export class UniversityTemplateService {
   ): Promise<ResolvedTemplateData | null> {
     try {
       // 1. Resolve university ID
-      let uniRows: any[] = await db.$queryRaw`
+      const uniRows: any[] = await db.$queryRaw`
         SELECT id, name, short_name
         FROM universities
         WHERE id::text = ${universityIdOrShortName}

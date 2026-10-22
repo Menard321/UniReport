@@ -242,6 +242,15 @@ export default function DocumentEditorPage() {
 
   // 5. PDF Export & Payment triggers
   const handleExportPdf = () => {
+    // Check for placeholders per unreportTZ Section 10
+    const placeholders = content.match(/\[MISSING:[^\]]+\]|\[ADD [^\]]+\]/g);
+    if (placeholders && placeholders.length > 0) {
+      AcademicAlerts.warning(
+        "Unresolved Placeholders",
+        `Your document has ${placeholders.length} unfilled placeholder(s) such as ${placeholders.slice(0, 2).join(", ")}. We recommend resolving them before final submission.`
+      );
+    }
+
     if (isPaid) {
       executePdfDownload();
     } else {
@@ -249,15 +258,68 @@ export default function DocumentEditorPage() {
     }
   };
 
+  const handleExportCoverOnlyPdf = () => {
+    if (isPaid) {
+      executeCoverOnlyPdfDownload();
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
+
   const executePdfDownload = () => {
     // Extract metadata from content or defaults
-    const uniMatch = content.match(/UNIVERSITY OF [^\n]+/i) || content.match(/COLLEGE OF [^\n]+/i);
-    const detectedUni = uniMatch ? uniMatch[0].trim() : "University of Dar es Salaam";
+    const uniMatch = content.match(/INSTITUTE OF FINANCE MANAGEMENT/i) ||
+                     content.match(/NATIONAL INSTITUTE OF TRANSPORT/i) ||
+                     content.match(/DAR ES SALAAM INSTITUTE OF TECHNOLOGY/i) ||
+                     content.match(/SOKOINE UNIVERSITY OF AGRICULTURE/i) ||
+                     content.match(/COLLEGE OF BUSINESS EDUCATION/i) ||
+                     content.match(/ARDHI UNIVERSITY/i) ||
+                     content.match(/(?:UNIVERSITY|COLLEGE|INSTITUTE) OF [^\n]+/i) ||
+                     content.match(/[A-Z\s]+ UNIVERSITY/i);
+    const detectedUni = uniMatch ? uniMatch[0].trim() : "Higher Learning Institution";
+    const studentMatch = content.match(/Student Name:\s*([^\n]+)/i);
+    const regMatch = content.match(/Reg(?:\.|\s)*No:\s*([^\n]+)/i);
+    const progMatch = content.match(/DEPARTMENT OF\s*([^\n]+)/i) || content.match(/PROGRAMME:\s*([^\n]+)/i);
+    const orgMatch = content.match(/Company\/Organization Name:\s*([^\n]+)/i) || content.match(/HOST ORGANIZATION:\s*([^\n]+)/i);
+    const supMatch = content.match(/Academic Supervisor's Name:\s*([^\n]+)/i) || content.match(/Training Officer's Name:\s*([^\n]+)/i);
 
     DocxCompilerEngine.openPdfPrintWindow({
       title: title || "Academic Field Report",
       institution: detectedUni,
+      studentName: studentMatch ? studentMatch[1].trim() : undefined,
+      registrationNumber: regMatch ? regMatch[1].trim() : undefined,
+      programme: progMatch ? progMatch[1].trim() : undefined,
+      organization: orgMatch ? orgMatch[1].trim() : undefined,
+      supervisorName: supMatch ? supMatch[1].trim() : undefined,
       content: content
+    });
+  };
+
+  const executeCoverOnlyPdfDownload = () => {
+    const uniMatch = content.match(/INSTITUTE OF FINANCE MANAGEMENT/i) ||
+                     content.match(/NATIONAL INSTITUTE OF TRANSPORT/i) ||
+                     content.match(/DAR ES SALAAM INSTITUTE OF TECHNOLOGY/i) ||
+                     content.match(/SOKOINE UNIVERSITY OF AGRICULTURE/i) ||
+                     content.match(/COLLEGE OF BUSINESS EDUCATION/i) ||
+                     content.match(/ARDHI UNIVERSITY/i) ||
+                     content.match(/(?:UNIVERSITY|COLLEGE|INSTITUTE) OF [^\n]+/i) ||
+                     content.match(/[A-Z\s]+ UNIVERSITY/i);
+    const detectedUni = uniMatch ? uniMatch[0].trim() : "Higher Learning Institution";
+    const studentMatch = content.match(/Student Name:\s*([^\n]+)/i);
+    const regMatch = content.match(/Reg(?:\.|\s)*No:\s*([^\n]+)/i);
+    const progMatch = content.match(/DEPARTMENT OF\s*([^\n]+)/i) || content.match(/PROGRAMME:\s*([^\n]+)/i);
+    const orgMatch = content.match(/Company\/Organization Name:\s*([^\n]+)/i) || content.match(/HOST ORGANIZATION:\s*([^\n]+)/i);
+    const supMatch = content.match(/Academic Supervisor's Name:\s*([^\n]+)/i) || content.match(/Training Officer's Name:\s*([^\n]+)/i);
+
+    DocxCompilerEngine.openCoverPageOnlyPdfWindow({
+      title: title || "Academic Field Report",
+      institution: detectedUni,
+      studentName: studentMatch ? studentMatch[1].trim() : undefined,
+      registrationNumber: regMatch ? regMatch[1].trim() : undefined,
+      programme: progMatch ? progMatch[1].trim() : undefined,
+      organization: orgMatch ? orgMatch[1].trim() : undefined,
+      supervisorName: supMatch ? supMatch[1].trim() : undefined,
+      content: ""
     });
   };
 
@@ -423,11 +485,25 @@ export default function DocumentEditorPage() {
             <span className="hidden sm:inline">Save</span>
           </Button>
 
+          {/* Cover Page Only PDF */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCoverOnlyPdf}
+            className="h-8 gap-1.5 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium"
+            title="Export official university cover page only as PDF"
+          >
+            <FileText className="size-3.5 text-teal-600 dark:text-teal-400" />
+            <span className="hidden md:inline">Cover Page PDF</span>
+            <span className="md:hidden">Cover</span>
+          </Button>
+
           {/* Export / Download PDF */}
           <Button
             size="sm"
             onClick={handleExportPdf}
             className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+            title="Download complete academic report as PDF"
           >
             <Download className="size-3.5" />
             <span>Download PDF</span>

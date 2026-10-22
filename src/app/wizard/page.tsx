@@ -7,6 +7,7 @@ import { ArrowLeft, Check, ChevronRight, FileUp, Sparkles, ArrowRight } from "lu
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getUniversitiesCatalog } from "@/data/tanzania-academic-catalog";
 
 const STEPS = [
   "Report Type",
@@ -182,15 +183,19 @@ export default function ReportWizardPage() {
                 <div className="space-y-6">
                   <div className="mb-8">
                     <h2 className="text-2xl md:text-3xl font-bold font-heading mb-2">Academic Requirements</h2>
-                    <p className="text-muted-foreground">Your profile defaults to UDSM settings. Adjust if needed.</p>
+                    <p className="text-muted-foreground">Select your institution to apply approved university-specific guidelines and formatting.</p>
                   </div>
 
                   <div className="space-y-5 bg-white dark:bg-slate-900 p-6 rounded-xl border shadow-sm">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Institution Guideline Overlay</label>
                       <select className="w-full h-11 px-3 border rounded-md bg-background outline-none">
-                        <option value="udsm" defaultValue="udsm">University of Dar es Salaam (Standard Template v2.4)</option>
-                        <option value="generic">Generic Academic Standard</option>
+                        {getUniversitiesCatalog().map((u) => (
+                          <option key={u.id} value={u.shortName.toLowerCase()}>
+                            {u.name} ({u.shortName})
+                          </option>
+                        ))}
+                        <option value="generic">Generic Tanzanian Academic Standard (TCU)</option>
                       </select>
                     </div>
 

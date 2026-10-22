@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
-import { analyzeAssignmentAndPlan } from "@/lib/report-engine/orchestrator";
+import {
+  analyzeAssignmentAndPlan,
+  PhasedReportGenerator,
+  PhasedGenerationInput
+} from "@/lib/report-engine/orchestrator";
 import { QualityAssurancePipeline } from "@/lib/report-engine/quality-assurance";
 import { UniversityTemplateService } from "@/lib/services/university-template-service";
 import { ComplianceAuditor } from "@/lib/report-engine/compliance-auditor";
@@ -23,6 +27,69 @@ export async function POST(req: Request) {
       targetPages = 10,
     } = body;
 
+    // Action: Validate Export Readiness (PDF only)
+    if (actionType === "VALIDATE_EXPORT_READINESS") {
+      const { project_profile, blocks, consistency_flags } = body;
+      const readiness = PhasedReportGenerator.validateExportReadiness({
+        project_profile: project_profile || {},
+        blocks: blocks || [],
+        consistency_flags: consistency_flags || []
+      });
+      return NextResponse.json({
+        success: true,
+        readiness
+      });
+    }
+
+    // Action 0: Phased Report Generation using unreportTZ Core Engine
+    if (actionType === "GENERATE_PHASE" || actionType === "PHASE" || body.current_phase) {
+      const {
+        project_profile,
+        cover_template,
+        structure_map,
+        approved_content,
+        current_phase,
+        user_edits,
+      } = body;
+
+      if (!project_profile || !structure_map || !current_phase) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Missing required inputs: 'project_profile', 'structure_map', and 'current_phase' are mandatory."
+          },
+          { status: 400 }
+        );
+      }
+
+      const input: PhasedGenerationInput = {
+        project_profile,
+        cover_template,
+        structure_map,
+        approved_content: approved_content || {
+          fixedFacts: {},
+          approvedPhases: {},
+          runningGlossary: [],
+          figureRegister: [],
+          tableRegister: []
+        },
+        current_phase,
+        user_edits
+      };
+
+      const phaseResponse = await PhasedReportGenerator.generatePhase(input);
+      const markdown = PhasedReportGenerator.blocksToMarkdown(phaseResponse.blocks);
+      const html = PhasedReportGenerator.blocksToHtml(phaseResponse.blocks);
+
+      return NextResponse.json({
+        success: true,
+        phase: phaseResponse,
+        text: markdown,
+        markdown,
+        html
+      });
+    }
+
     // Action 1: Generate initial Report Plan Blueprint
     if (actionType === "CREATE_PLAN") {
       let resolvedSections = assignment?.customTemplateSections;
@@ -31,10 +98,13 @@ export async function POST(req: Request) {
       // If university is provided and no custom sections were explicitly passed, dynamically resolve
       if ((!resolvedSections || resolvedSections.length === 0) && (assignment?.institution || institution)) {
         const targetUni = assignment?.institution || institution;
-        const resolved = await UniversityTemplateService.resolveTemplate(
-          targetUni,
-          assignment?.reportType || "FIELDWORK"
-        );
+        const resolved = await UniversityTemplateService.resolveTemplate({
+          universityIdOrShortName: targetUni,
+          reportTypeCode: assignment?.reportType || "FIELDWORK",
+          college: assignment?.college || assignment?.faculty,
+          programme: assignment?.programme || assignment?.course,
+          academicDiscipline: assignment?.discipline
+        });
         if (resolved) {
           resolvedSections = resolved.sections;
           resolvedFormatting = resolved.formatting_rules;
@@ -45,7 +115,7 @@ export async function POST(req: Request) {
         ...(assignment || {
           title: "Academic Report",
           reportType: "FIELDWORK",
-          institution: institution || "University of Dar es Salaam (UDSM)",
+          institution: institution || "Tanzanian Higher Learning Institution",
         }),
         targetPages: targetPages,
         customTemplateSections: resolvedSections,

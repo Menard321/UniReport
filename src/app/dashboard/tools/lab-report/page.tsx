@@ -393,7 +393,10 @@ export default function LabReportGuidedPage() {
 
     const exportOptions = {
       title: experimentTitle || "LABORATORY REPORT",
-      institution: university || "Tanzania Higher Education",
+      institution: university || "Tanzanian Higher Learning Institution",
+      institutionShortName: selectedUniShortName || undefined,
+      logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+      reportType: "LABORATORY PRACTICAL REPORT",
       faculty,
       programme: isCustomCourse ? customCourse : programme,
       studentName: studentName || "STUDENT NAME",
@@ -1007,7 +1010,10 @@ export default function LabReportGuidedPage() {
           setShowPaywallModal(false);
           const exportOptions = {
             title: experimentTitle || "LABORATORY REPORT",
-            institution: university || "Tanzania Higher Education",
+            institution: university || "Tanzanian Higher Learning Institution",
+            institutionShortName: selectedUniShortName || undefined,
+            logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+            reportType: "LABORATORY PRACTICAL REPORT",
             faculty,
             programme: isCustomCourse ? customCourse : programme,
             studentName: studentName || "STUDENT NAME",

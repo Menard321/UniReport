@@ -217,7 +217,7 @@ export function DocumentExportPaywallModal({
             Unlock Official Academic Export
           </h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Remove all draft watermarks, get official cover pages, and download clean PDF & editable Word (.docx) files.
+            Remove all draft watermarks, get official university cover pages, and download publication-grade PDF reports.
           </p>
 
           <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border text-[11px] font-mono text-slate-700 dark:text-slate-300">

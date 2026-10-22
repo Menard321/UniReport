@@ -376,7 +376,10 @@ export default function CourseworkGuidedPage() {
 
     const exportOptions = {
       title: assignmentTitle || "COURSEWORK ASSIGNMENT",
-      institution: university || "Tanzania Higher Education",
+      institution: university || "Tanzanian Higher Learning Institution",
+      institutionShortName: selectedUniShortName || undefined,
+      logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+      reportType: "COURSEWORK & TERM PAPER",
       faculty,
       programme: isCustomCourse ? customCourse : programme,
       studentName: studentName || "STUDENT NAME",
@@ -963,7 +966,10 @@ export default function CourseworkGuidedPage() {
           setShowPaywallModal(false);
           const exportOptions = {
             title: assignmentTitle || "COURSEWORK ASSIGNMENT",
-            institution: university || "Tanzania Higher Education",
+            institution: university || "Tanzanian Higher Learning Institution",
+            institutionShortName: selectedUniShortName || undefined,
+            logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+            reportType: "COURSEWORK & TERM PAPER",
             faculty,
             programme: isCustomCourse ? customCourse : programme,
             studentName: studentName || "STUDENT NAME",

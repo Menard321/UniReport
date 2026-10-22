@@ -123,64 +123,171 @@ export async function POST(req: NextRequest) {
       extractedText = buffer.toString("utf-8").slice(0, 10000);
     }
 
-    // 2. Parse structural chapters / sections from extracted text
-    const sections: Array<{ id: string; title: string; description: string; order: number }> = [];
+    // 2. Parse structural chapters, subsections, and preliminary pages from extracted text
+    const sections: Array<{
+      id: string;
+      number: string;
+      title: string;
+      description: string;
+      order: number;
+      subsections?: string[];
+    }> = [];
 
-    // Search for chapter indicators
-    const lines = extractedText.split(/[\r\n]+/);
-    let chapterIndex = 1;
+    const lines = extractedText.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
+    const wordToNum: Record<string, string> = {
+      ONE: "1", TWO: "2", THREE: "3", FOUR: "4", FIVE: "5",
+      SIX: "6", SEVEN: "7", EIGHT: "8",
+      KWANZA: "1", PILI: "2", TATU: "3", NNE: "4", TANO: "5", SITA: "6", SABA: "7", NANE: "8",
+      I: "1", II: "2", III: "3", IV: "4", V: "5", VI: "6", VII: "7", VIII: "8"
+    };
 
-    for (const line of lines) {
-      const cleanLine = line.trim();
-      if (
-        cleanLine.length > 5 &&
-        cleanLine.length < 110 &&
-        /^(chapter\s+[0-9ivx]+|section\s+[0-9ivx]+|1\.0|2\.0|3\.0|4\.0|5\.0|6\.0)/i.test(cleanLine)
-      ) {
-        sections.push({
-          id: `custom-sec-${chapterIndex}`,
-          title: cleanLine,
-          description: `Extracted guideline requirement from ${fileName}`,
-          order: chapterIndex
-        });
-        chapterIndex++;
-        if (sections.length >= 8) break;
+    let currentSection: {
+      id: string;
+      number: string;
+      title: string;
+      description: string;
+      order: number;
+      subsections: string[];
+    } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Chapter match regex (supports CHAPTER 1, SURA YA KWANZA, SECTION 1, 1.0 TITLE)
+      const chMatch =
+        line.match(/^(?:#\s*)?(?:CHAPTER|SURA\s+YA|SECTION)\s+([0-9]+|[A-Z]+)[:\s]*(.*)$/i) ||
+        line.match(/^([1-8])\.0\s+(.*)$/i);
+
+      if (chMatch) {
+        const rawNum = chMatch[1].toUpperCase();
+        const chNum = wordToNum[rawNum] || rawNum;
+        let titlePart = (chMatch[2] || "").trim();
+
+        // If title is empty or just chapter number, look ahead to next line for subtitle
+        if (!titlePart || titlePart.length < 3) {
+          if (i + 1 < lines.length) {
+            const nextLine = lines[i + 1];
+            if (
+              nextLine.length > 3 &&
+              nextLine.length < 110 &&
+              !/^(?:CHAPTER|SURA|SECTION|[0-9]+\.[0-9]+)/i.test(nextLine)
+            ) {
+              titlePart = nextLine;
+              i++; // consume next line
+            }
+          }
+        }
+
+        const cleanTitle = titlePart ? `Chapter ${chNum}: ${titlePart}` : `Chapter ${chNum}`;
+
+        if (currentSection) {
+          sections.push(currentSection);
+        }
+
+        currentSection = {
+          id: `custom-ch${chNum}`,
+          number: `CHAPTER ${chNum}`,
+          title: cleanTitle,
+          description: `Extracted guideline requirements from ${fileName} for Chapter ${chNum}`,
+          order: parseInt(chNum, 10) || (sections.length + 1),
+          subsections: []
+        };
+        continue;
+      }
+
+      // Subsection match (e.g. 1.1 Profile, 1.2 Mission, 2.1.1 Routine)
+      if (currentSection) {
+        const subMatch = line.match(/^([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s+([A-Za-z0-9 &,'\(\)\/\-]+)$/);
+        if (subMatch && subMatch[2].length > 3 && subMatch[2].length < 120) {
+          currentSection.subsections.push(`${subMatch[1]} ${subMatch[2].trim()}`);
+        }
       }
     }
+
+    if (currentSection) {
+      sections.push(currentSection);
+    }
+
+    // Detect Preliminary Pages in the document
+    const fullTextUpper = extractedText.toUpperCase();
+    const detectedPrelims = {
+      includeDeclaration: /DECLARATION|TAMKO/i.test(fullTextUpper),
+      includeDedication: /DEDICATION|WAKFU/i.test(fullTextUpper),
+      includeAcknowledgement: /ACKNOWLEDGEMENT|SHUKRANI/i.test(fullTextUpper),
+      includeAbstract: /ABSTRACT/i.test(fullTextUpper),
+      includeExecutiveSummary: /EXECUTIVE SUMMARY|MUHTASARI/i.test(fullTextUpper),
+      includeTableOfContents: true,
+      includeListOfAbbreviations: /ABBREVIATION|VIFUPISHO/i.test(fullTextUpper),
+      includeListOfTables: /LIST OF TABLES|JEDWALI/i.test(fullTextUpper),
+      includeListOfFigures: /LIST OF FIGURES|MICHORO|FIGURES/i.test(fullTextUpper)
+    };
 
     // Fallback standard chapters if file didn't include explicit numbered headings
     const isStandardFallback = sections.length < 3;
     if (isStandardFallback) {
+      sections.length = 0; // Clear partial matches
       sections.push(
         {
           id: "custom-ch1",
+          number: "CHAPTER 1",
           title: "Chapter 1: Organization Overview & Placement Mandate",
           description: `Extracted from ${fileName}: profile, historical background, organizational structure, core operations.`,
-          order: 1
+          order: 1,
+          subsections: [
+            "1.1 Profile and Background of Host Organization",
+            "1.2 Vision, Mission and Core Functions",
+            "1.3 Organizational Governance & Administrative Structure",
+            "1.4 Department Profile and Functional Mandate",
+            "1.5 Professional Ethics and Workplace Health & Safety Regulations"
+          ]
         },
         {
           id: "custom-ch2",
+          number: "CHAPTER 2",
           title: "Chapter 2: Technical Duties & Fieldwork Implementation",
           description: `Extracted from ${fileName}: major hands-on tasks, methodology, system diagrams, and tools implemented.`,
-          order: 2
+          order: 2,
+          subsections: [
+            "2.1 Departmental Attachment Routine and Standard Operating Procedures",
+            "2.2 Major Technical Assignments and Engineering Duties Executed",
+            "2.3 Technical Equipment, Software Stacks, and Calibration Tools Handled",
+            "2.4 Comparative Technical & Methodological Evaluation Matrix"
+          ]
         },
         {
           id: "custom-ch3",
+          number: "CHAPTER 3",
           title: "Chapter 3: Industrial Challenges & Problem Solving",
           description: `Extracted from ${fileName}: technical obstacles encountered and solutions formulated.`,
-          order: 3
+          order: 3,
+          subsections: [
+            "3.1 Identification and Root Cause Analysis of Industrial Challenges",
+            "3.2 Practical Mitigation Strategies Implemented during Attachment"
+          ]
         },
         {
           id: "custom-ch4",
+          number: "CHAPTER 4",
           title: "Chapter 4: Skills Acquired & Curriculum Relevance",
           description: `Extracted from ${fileName}: theoretical knowledge vs real-world practical application.`,
-          order: 4
+          order: 4,
+          subsections: [
+            "4.1 New Practical Skills and Technical Competencies Developed",
+            "4.2 Professional and Interpersonal Working Competencies",
+            "4.3 Connecting Industrial Fieldwork with University Academic Curriculum"
+          ]
         },
         {
           id: "custom-ch5",
+          number: "CHAPTER 5",
           title: "Chapter 5: Conclusions & Actionable Recommendations",
           description: `Extracted from ${fileName}: critical evaluation and actionable recommendations.`,
-          order: 5
+          order: 5,
+          subsections: [
+            "5.1 Comprehensive Practical Training Conclusion",
+            "5.2 Strategic Recommendations to the Host Enterprise",
+            "5.3 Actionable Recommendations to the University Academic Board"
+          ]
         }
       );
     }
@@ -191,6 +298,7 @@ export async function POST(req: NextRequest) {
       url: url || undefined,
       templateName: `Institutional Guideline: ${fileName.replace(/\.[^/.]+$/, "")}`,
       sections,
+      preliminaries: detectedPrelims,
       confidence: isStandardFallback ? "low" : "high",
       isStandardFallback,
       warningMessage: isStandardFallback

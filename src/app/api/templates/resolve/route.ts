@@ -14,7 +14,17 @@ export async function GET(req: Request) {
       );
     }
 
-    const resolved = await UniversityTemplateService.resolveTemplate(university, reportType);
+    const college = searchParams.get("college") || undefined;
+    const programme = searchParams.get("programme") || undefined;
+    const academicDiscipline = searchParams.get("discipline") || undefined;
+
+    const resolved = await UniversityTemplateService.resolveTemplate({
+      universityIdOrShortName: university,
+      reportTypeCode: reportType,
+      college,
+      programme,
+      academicDiscipline
+    });
 
     if (!resolved) {
       return NextResponse.json(

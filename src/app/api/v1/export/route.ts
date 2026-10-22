@@ -49,15 +49,24 @@ export async function POST(req: Request) {
 
     const exportOptions = {
       title: options?.title || documentRecord?.title || "Academic Report",
-      institution: options?.institution || "University of Dar es Salaam (UDSM)",
-      faculty: options?.faculty || "College of Information and Communication Technologies",
-      programme: options?.programme || "Degree Programme",
+      institution: options?.institution || "Higher Learning Institution",
+      institutionShortName: options?.institutionShortName,
+      logoUrl: options?.logoUrl,
+      faculty: options?.faculty || "",
+      department: options?.department,
+      programme: options?.programme || "",
       studentName: options?.studentName || "",
       registrationNumber: options?.registrationNumber || "",
       yearOfStudy: options?.yearOfStudy || "",
       organization: options?.organization || "",
-      supervisorName: options?.supervisorName || "Academic Supervisor",
-      academicYear: options?.academicYear || "2025/2026",
+      supervisorName: options?.supervisorName || options?.fieldSupervisor || "Supervisor",
+      fieldSupervisor: options?.fieldSupervisor,
+      universitySupervisor: options?.universitySupervisor,
+      academicYear: options?.academicYear || "2024/2025",
+      attachmentPeriod: options?.attachmentPeriod,
+      submissionDate: options?.submissionDate,
+      reportType: options?.reportType,
+      discipline: options?.discipline,
       content: options?.content || documentRecord?.content || "# ACADEMIC REPORT DRAFT"
     };
 

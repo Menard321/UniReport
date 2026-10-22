@@ -563,7 +563,10 @@ export default function FYPGeneratorPage() {
 
     const exportOptions = {
       title: title || "RESEARCH DISSERTATION",
-      institution: university || "Tanzania Higher Education",
+      institution: university || "Tanzanian Higher Learning Institution",
+      institutionShortName: selectedUniShortName || undefined,
+      logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+      reportType: "FINAL YEAR PROJECT (FYP) DISSERTATION",
       faculty,
       programme: isCustomCourse ? customCourse : programme,
       studentName: studentName || "STUDENT NAME",
@@ -1393,7 +1396,10 @@ export default function FYPGeneratorPage() {
           setShowPaywallModal(false);
           const exportOptions = {
             title: title || "RESEARCH DISSERTATION",
-            institution: university || "Tanzania Higher Education",
+            institution: university || "Tanzanian Higher Learning Institution",
+            institutionShortName: selectedUniShortName || undefined,
+            logoUrl: selectedUniShortName ? getUniversityByShortName(selectedUniShortName)?.logoUrl : undefined,
+            reportType: "FINAL YEAR PROJECT (FYP) DISSERTATION",
             faculty,
             programme: isCustomCourse ? customCourse : programme,
             studentName: studentName || "STUDENT NAME",

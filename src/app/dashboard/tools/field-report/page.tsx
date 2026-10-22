@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -35,10 +35,11 @@ import {
   AlertCircle,
   Info,
   Paperclip,
-  Trash2
+  Trash2,
+  Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
+import { DocxCompilerEngine, DocxExportOptions } from "@/lib/export/docx-compiler";
 import { SuggestionModal } from "@/components/evidence/SuggestionModal";
 import { DocumentExportPaywallModal } from "@/components/billing/DocumentExportPaywallModal";
 import {
@@ -114,7 +115,7 @@ export default function FieldReportGuidedPage() {
 
   // CUSTOM TEMPLATE UPLOAD & URL STATE
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [customSections, setCustomSections] = useState<Array<{ id: string; title: string; description: string; order: number }>>([]);
+  const [customSections, setCustomSections] = useState<Array<{ id: string; title: string; description: string; order: number; subsections?: string[] }>>([]);
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [templateUrlInput, setTemplateUrlInput] = useState("");
   const [urlFetchError, setUrlFetchError] = useState("");
@@ -149,8 +150,10 @@ export default function FieldReportGuidedPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "doc">("pdf");
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "cover">("pdf");
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState<string>("");
+  const [generationProgress, setGenerationProgress] = useState<number>(0);
 
   // CURRENT SELECTED UNIVERSITY ITEM
   const selectedUni = selectedUniShortName ? getUniversityByShortName(selectedUniShortName) : undefined;
@@ -159,14 +162,30 @@ export default function FieldReportGuidedPage() {
   const availableColleges: CollegeItem[] = selectedUniShortName ? getCollegesForUniversity(selectedUniShortName) : [];
   const availableCourses: CourseItem[] = (selectedUniShortName && selectedCollegeId) ? getCoursesForCollege(selectedUniShortName, selectedCollegeId) : [];
 
-  // INSTITUTIONAL TEMPLATE BLUEPRINT
-  const activeBlueprint: InstitutionalTemplateBlueprint = UniversityTemplateEngine.resolveTemplate(selectedUniShortName);
+  // INSTITUTIONAL TEMPLATE BLUEPRINT (CONTEXT-AWARE FOR SPECIALIZED DISCIPLINES)
+  const activeBlueprint: InstitutionalTemplateBlueprint = UniversityTemplateEngine.resolveTemplate(
+    selectedUniShortName,
+    {
+      college: faculty,
+      programme: isCustomCourse ? customCourse : programme,
+      taskDescription: reportTitle,
+      activities
+    }
+  );
 
   const resolveUniversityTemplate = async (shortName: string) => {
     if (!shortName) return;
     setIsLoadingTemplate(true);
     try {
-      const res = await fetch(`/api/templates/resolve?university=${encodeURIComponent(shortName)}&report_type=FIELDWORK`);
+      const q = new URLSearchParams({
+        university: shortName,
+        report_type: "FIELDWORK",
+      });
+      if (faculty) q.append("college", faculty);
+      const effectiveProg = isCustomCourse ? customCourse : programme;
+      if (effectiveProg) q.append("programme", effectiveProg);
+
+      const res = await fetch(`/api/templates/resolve?${q.toString()}`);
       const json = await res.json();
       if (json.success && json.data) {
         setResolvedTemplate(json.data);
@@ -178,14 +197,14 @@ export default function FieldReportGuidedPage() {
     }
   };
 
-  // FETCH SERVER-SIDE TEMPLATE ONLY WHEN A UNIVERSITY IS SELECTED
+  // FETCH SERVER-SIDE TEMPLATE WHEN UNIVERSITY, FACULTY, OR PROGRAMME CHANGES
   useEffect(() => {
     if (selectedUniShortName) {
       resolveUniversityTemplate(selectedUniShortName);
     } else {
       setResolvedTemplate(null);
     }
-  }, [selectedUniShortName]);
+  }, [selectedUniShortName, faculty, programme, customCourse, isCustomCourse]);
 
   // INITIAL URL PARAMETERS CHECK (?institution=UDSM)
   useEffect(() => {
@@ -488,85 +507,185 @@ export default function FieldReportGuidedPage() {
   };
 
   // DYNAMIC OUTLINE SECTIONS (CUSTOM UPLOAD > ACTIVE INSTITUTIONAL BLUEPRINT > NATIONAL STANDARD)
-  const outlineSections = customSections && customSections.length > 0
+  const outlineSections: Array<{ id: string; title: string; description: string; subsections?: string[] }> = customSections && customSections.length > 0
     ? customSections.map((sec, idx) => ({
         id: sec.id || `custom-sec-${idx}`,
         title: sec.title,
-        description: sec.description || "Custom uploaded template requirement"
+        description: sec.description || "Custom uploaded template requirement",
+        subsections: sec.subsections || []
       }))
     : activeBlueprint && activeBlueprint.chapters && activeBlueprint.chapters.length > 0
       ? activeBlueprint.chapters.map((ch) => ({
           id: ch.id,
           title: `${ch.number}: ${ch.title}`,
-          description: ch.description,
-          subsections: ch.subsections
+          description: ch.description || "",
+          subsections: ch.subsections || []
         }))
       : resolvedTemplate && resolvedTemplate.sections && resolvedTemplate.sections.length > 0
         ? resolvedTemplate.sections.map((sec, idx) => ({
             id: `sec-${sec.id || idx}`,
             title: sec.title,
-            description: sec.description
+            description: sec.description || "",
+            subsections: [] as string[]
           }))
         : [
-            { id: "ch1", title: "Chapter 1: Introduction & Organization Background", description: "Background and mandate." },
-            { id: "ch2", title: "Chapter 2: Industrial Attachment Activities", description: "Daily operations and tasks." },
-            { id: "ch3", title: "Chapter 3: Technical Challenges & Solutions", description: "Analysis and mitigation." },
-            { id: "ch4", title: "Chapter 4: Skills Acquired & Lessons Learned", description: "Curriculum relevance." },
-            { id: "ch5", title: "Chapter 5: Conclusions & Recommendations", description: "Strategic suggestions." }
+            { id: "ch1", title: "Chapter 1: Introduction & Organization Background", description: "Background and mandate.", subsections: [] },
+            { id: "ch2", title: "Chapter 2: Industrial Attachment Activities", description: "Daily operations and tasks.", subsections: [] },
+            { id: "ch3", title: "Chapter 3: Technical Challenges & Solutions", description: "Analysis and mitigation.", subsections: [] },
+            { id: "ch4", title: "Chapter 4: Skills Acquired & Lessons Learned", description: "Curriculum relevance.", subsections: [] },
+            { id: "ch5", title: "Chapter 5: Conclusions & Recommendations", description: "Strategic suggestions.", subsections: [] }
           ];
 
-  // REPORT GENERATION ENGINE
+  // COMPILED EXPORT OPTIONS & MULTI-SHEET A4 CANVAS LOGIC
+  const buildExportOptions = useCallback((): DocxExportOptions => {
+    const effectiveProgramme = (isCustomCourse ? customCourse : programme).trim();
+    const effectiveStudentName = studentName.trim();
+    const effectiveRegNumber = regNumber.trim();
+    const effectiveOrg = organization.trim();
+    const effectiveSupervisor = supervisor.trim();
+    const effectiveDept = department.trim() || (faculty ? `${faculty} Technical Unit` : "");
+    const effectiveAcademicYear = resolvedAcademicYear || "2024/2025";
+    const effectiveDuration = duration.trim() || "8 Weeks";
+    const effectiveSubmissionDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+    return {
+      title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${effectiveOrg || "Host Enterprise"}`,
+      institution: university,
+      institutionShortName: selectedUniShortName,
+      logoUrl: selectedUni?.logoUrl,
+      reportType: activeBlueprint?.coverPageLayout?.headerTitle || "FIELD PRACTICAL TRAINING REPORT",
+      faculty,
+      department: effectiveDept,
+      programme: effectiveProgramme || "[DEGREE PROGRAMME REQUIRED]",
+      studentName: effectiveStudentName || "[STUDENT NAME REQUIRED]",
+      registrationNumber: effectiveRegNumber || "[REGISTRATION NUMBER REQUIRED]",
+      yearOfStudy: yearOfStudy || "2",
+      organization: effectiveOrg || "[HOST ENTERPRISE REQUIRED]",
+      fieldSupervisor: effectiveSupervisor || "[FIELD SUPERVISOR REQUIRED]",
+      universitySupervisor: effectiveSupervisor || "[ACADEMIC SUPERVISOR REQUIRED]",
+      supervisorName: effectiveSupervisor,
+      academicYear: effectiveAcademicYear,
+      attachmentPeriod: effectiveDuration,
+      submissionDate: effectiveSubmissionDate,
+      content: generatedReport
+    };
+  }, [
+    isCustomCourse, customCourse, programme, studentName, regNumber, organization,
+    supervisor, department, faculty, resolvedAcademicYear, duration, reportTitle,
+    targetPages, university, selectedUniShortName, selectedUni, activeBlueprint,
+    yearOfStudy, generatedReport
+  ]);
+
+  const effectiveExportOptions = useMemo(() => buildExportOptions(), [buildExportOptions]);
+
+  const contentSheets = useMemo(() => {
+    if (!generatedReport) return [];
+    const formattedHtml = DocxCompilerEngine.formatContentToAcademicHtml(generatedReport, effectiveExportOptions);
+    return DocxCompilerEngine.splitContentIntoA4Sheets(formattedHtml);
+  }, [generatedReport, effectiveExportOptions]);
+
+  const effectiveCh1Index = useMemo(() => {
+    const idx = contentSheets.findIndex(s => 
+      /<h1[^>]*class="[^"]*chapter-title[^"]*"[^>]*>\s*CHAPTER\s+(?:1|ONE)\b/i.test(s) ||
+      /<h1[^>]*id="ch-1"[^>]*>/i.test(s)
+    );
+    return idx >= 0 ? idx : 6;
+  }, [contentSheets]);
+
+  // REPORT GENERATION ENGINE (PHASED STEPPER)
   const handleGenerateReport = async () => {
     setIsGenerating(true);
     setStep(5);
+    setGenerationProgress(12);
+    setGenerationPhase("Phase 1: Validating Student Identity & Formulating Cover Page...");
+
+    const sections = outlineSections;
+    let secStep = 0;
+    const progressTimer = setInterval(() => {
+      setGenerationProgress((prev) => {
+        if (prev < 20) {
+          setGenerationPhase("Phase 1: Validating Student Identity & Formulating Cover Page...");
+          return prev + 4;
+        } else if (prev < 35) {
+          setGenerationPhase("Phase 2: Compiling Preliminaries (Declaration, Approval, Abstract, TOC)...");
+          return prev + 4;
+        } else if (prev < 85) {
+          const currentSec = sections[secStep % sections.length];
+          secStep++;
+          setGenerationPhase(`Synthesizing ${currentSec ? currentSec.title : "Chapter Content"}...`);
+          return prev + 4;
+        } else if (prev < 95) {
+          setGenerationPhase("Synthesizing Concluding Observations, References & Appendices...");
+          return prev + 2;
+        }
+        return prev;
+      });
+    }, 850);
+
+    const effectiveCollege = faculty.trim() || (selectedUniShortName === "UDSM" ? "College of Information and Communication Technologies (CoICT)" : "");
+    const effectiveProgramme = (isCustomCourse ? customCourse : programme).trim() || (selectedUniShortName === "UDSM" ? "BSc in Computer Science" : "[DEGREE PROGRAMME REQUIRED]");
+    const effectiveStudent = studentName.trim() || "[STUDENT NAME REQUIRED]";
+    const effectiveReg = regNumber.trim() || "[REGISTRATION NUMBER REQUIRED]";
+    const effectiveOrg = organization.trim() || "[HOST ENTERPRISE REQUIRED]";
+    const effectiveDept = department.trim() || (effectiveCollege ? `${effectiveCollege} Unit` : "Technical Operations Unit");
+    const effectiveSupervisor = supervisor.trim() || "[FIELD SUPERVISOR REQUIRED]";
+    const effectiveAcademicYear = resolvedAcademicYear || "2024/2025";
+    const effectiveDuration = duration.trim() || "8 Weeks";
 
     // Build authentic, publication-grade academic report matching official institutional standards
     const institutionalReport = UniversityTemplateEngine.generateFullAcademicReportContent({
       reportTitle: reportTitle || "FIELD PRACTICAL TRAINING REPORT",
-      studentName: studentName || "STUDENT NAME",
-      regNumber: regNumber || "REGISTRATION NUMBER",
+      studentName: effectiveStudent,
+      regNumber: effectiveReg,
       yearOfStudy: yearOfStudy || "Year 2",
-      university: university || "University of Dar es Salaam",
-      uniShortName: selectedUniShortName || "UDSM",
-      college: faculty || "College of Agricultural Sciences and Fisheries Technology",
-      programme: isCustomCourse ? customCourse : (programme || "Degree Programme"),
-      organization: organization || "Host Enterprise",
-      department: department || "Operations Unit",
-      supervisor: supervisor || "Field Supervisor",
-      academicYear: resolvedAcademicYear || "2024/2025",
-      duration: duration || "8 Weeks",
+      university: university || selectedUni?.name || "Tanzanian Higher Learning Institution",
+      uniShortName: selectedUniShortName || selectedUni?.shortName || "HLI",
+      college: effectiveCollege,
+      programme: effectiveProgramme,
+      organization: effectiveOrg,
+      department: effectiveDept,
+      supervisor: effectiveSupervisor,
+      academicYear: effectiveAcademicYear,
+      duration: effectiveDuration,
       activities,
       toolsUsed,
       challenges,
       keyLearnings,
-      targetPages
+      targetPages,
+      customSections: customSections && customSections.length > 0 ? customSections : undefined,
+      uploadedTemplateName: uploadedFileName || undefined
     });
 
     const dynamicCover = UniversityTemplateEngine.generateOfficialUdsmCoverPage({
       reportTitle: reportTitle || "FIELD PRACTICAL TRAINING REPORT",
-      studentName: studentName || "STUDENT NAME",
-      regNumber: regNumber || "REGISTRATION NUMBER",
+      studentName: effectiveStudent,
+      regNumber: effectiveReg,
       yearOfStudy,
       university,
-      college: faculty,
-      programme: isCustomCourse ? customCourse : programme,
-      organization,
-      department,
-      supervisor,
-      academicYear: resolvedAcademicYear || "2024/2025"
+      college: effectiveCollege,
+      programme: effectiveProgramme,
+      organization: effectiveOrg,
+      department: effectiveDept,
+      supervisor: effectiveSupervisor,
+      academicYear: effectiveAcademicYear
     });
 
     const promptContext = `
 ${dynamicCover}
 
-INSTITUTIONAL FORMAT BLUEPRINT (${activeBlueprint.institutionName}):
+${uploadedFileName && customSections.length > 0 
+  ? `CUSTOM UPLOADED UNIVERSITY SAMPLE STANDARD (${uploadedFileName}):
+The student uploaded an official approved university sample report / attachment guideline.
+You MUST follow this exact chapter outline and include all extracted subsections:
+${outlineSections.map((s, idx) => `Chapter ${idx + 1}: ${s.title}${s.subsections?.length ? ` (Subsections: ${s.subsections.join(", ")})` : ""} - ${s.description}`).join("\n")}`
+  : `INSTITUTIONAL FORMAT BLUEPRINT (${activeBlueprint.institutionName}):
 Source Template Standard: ${activeBlueprint.sourceFile}
 ${activeBlueprint.guidelineRules.join("\n")}
 
-TARGET REPORT LENGTH: Approximately ${targetPages} Pages (around ${parseInt(targetPages) * 350} words)
-
 REQUIRED CHAPTER HIERARCHY:
-${outlineSections.map((s, idx) => `Section ${idx + 1}: ${s.title} - ${s.description}`).join("\n")}
+${outlineSections.map((s, idx) => `Section ${idx + 1}: ${s.title} - ${s.description}`).join("\n")}`}
+
+TARGET REPORT LENGTH: Approximately ${targetPages} Pages (around ${parseInt(targetPages) * 350} words)
 
 STUDENT'S PRACTICAL EVIDENCE & WORK LOG:
 Activities Performed:
@@ -589,7 +708,7 @@ Follow these strict writing style instructions:
 2. BAN ALL AI CLICHÉS: DO NOT use robotic buzzwords or academic jargon such as "exhaustive pedagogical synthesis", "systematic paradigm", "tapestry", "plethora", "delve into", "beacon of excellence", "testament to", "multifaceted", or "serves as an intensive learning laboratory". 
 3. REAL STUDENT VOICE: Describe your practical work from a realistic, first-person or professional perspective (e.g., "During my training at ${organization}, I worked in the ${department || "technical"} unit under the supervision of ${supervisor || "my supervisor"}. My daily tasks included...").
 4. CONCRETE DETAILS: Focus on practical daily realities: tools used (${toolsUsed || "standard equipment"}), specific steps carried out, real challenges faced, and how they were solved.
-5. ACADEMIC STRUCTURE: Maintain the official ${activeBlueprint.shortName} chapter hierarchy (Chapters 1 to 5, Preliminary Pages, References, Appendices).
+5. ACADEMIC STRUCTURE: Maintain the official ${uploadedFileName && customSections.length > 0 ? `uploaded sample (${uploadedFileName})` : activeBlueprint.shortName} chapter hierarchy (${outlineSections.map((s, idx) => s.title).join(", ")}, Preliminary Pages, References, Appendices).
 6. COVER PAGE & CREDENTIALS: You MUST include the exact student cover page with real credentials (${studentName || "STUDENT NAME"}, Reg No: ${regNumber || "REGISTRATION NUMBER"}).
 7. DIAGRAMS & TABLES: Include Figure 1.1 Organogram, Figure 2.1 Process Flowchart, and Table 2.1 Comparative Matrix. Target approximately ${targetPages} pages (${parseInt(targetPages) * 350} words).`,
           input: promptContext
@@ -598,7 +717,8 @@ Follow these strict writing style instructions:
 
       const data = await res.json();
       let reportText = institutionalReport;
-      if (res.ok && data.result && data.result.length > 1000) {
+      // Only adopt external AI completion if it preserves full document structure with SVGs, tables, and page budget breaks
+      if (res.ok && data.result && data.result.includes("<!-- PAGE_BREAK -->") && data.result.includes("<svg") && data.result.length > 10000) {
         reportText = data.result;
       }
 
@@ -621,6 +741,9 @@ Follow these strict writing style instructions:
     } catch (e) {
       setGeneratedReport(institutionalReport);
     } finally {
+      clearInterval(progressTimer);
+      setGenerationProgress(100);
+      setGenerationPhase("Phase 8: Performing Pagination Audit & Enforcing Chapter Breaks Complete");
       setIsGenerating(false);
     }
   };
@@ -657,27 +780,24 @@ Follow these strict writing style instructions:
     }
   };
 
-  const handleExport = async (format: "pdf" | "doc" = "pdf") => {
+  const handleExport = async (format: "pdf" | "cover" = "pdf") => {
     if (!generatedReport) return;
     setSelectedFormat(format);
 
-    const exportOptions = {
-      title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
-      institution: university,
-      faculty,
-      programme: isCustomCourse ? customCourse : programme,
-      studentName: studentName || "STUDENT NAME",
-      registrationNumber: regNumber || "REGISTRATION NUMBER",
-      yearOfStudy,
-      organization,
-      supervisorName: supervisor,
-      academicYear: resolvedAcademicYear || "2024/2025",
-      content: generatedReport
-    };
+    // Check for placeholders per unreportTZ Section 10
+    const placeholders = generatedReport.match(/\[MISSING:[^\]]+\]|\[ADD [^\]]+\]/g);
+    if (placeholders && placeholders.length > 0) {
+      AcademicAlerts.warning(
+        "Unresolved Placeholders",
+        `Your report contains ${placeholders.length} unresolved placeholder(s) (${placeholders.slice(0, 2).join(", ")}). You can edit them in the editor before final submission.`
+      );
+    }
+
+    const exportOptions = buildExportOptions();
 
     if (isUnlocked) {
-      if (format === "doc") {
-        DocxCompilerEngine.downloadDocxFile(exportOptions);
+      if (format === "cover") {
+        DocxCompilerEngine.openCoverPageOnlyPdfWindow(exportOptions);
       } else {
         DocxCompilerEngine.openPdfPrintWindow(exportOptions);
       }
@@ -690,7 +810,7 @@ Follow these strict writing style instructions:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          format,
+          format: "pdf",
           options: exportOptions
         })
       });
@@ -700,8 +820,8 @@ Follow these strict writing style instructions:
         setShowPaymentModal(true);
       } else if (data.success) {
         setIsUnlocked(true);
-        if (format === "doc") {
-          DocxCompilerEngine.downloadDocxFile(exportOptions);
+        if (format === "cover") {
+          DocxCompilerEngine.openCoverPageOnlyPdfWindow(exportOptions);
         } else {
           DocxCompilerEngine.openPdfPrintWindow(exportOptions);
         }
@@ -726,23 +846,11 @@ Follow these strict writing style instructions:
         onSuccess={() => {
           setIsUnlocked(true);
           setShowPaymentModal(false);
-          const exportOptions = {
-            title: reportTitle || `Fieldwork Report (${targetPages} Pages) - ${organization}`,
-            institution: university,
-            faculty,
-            programme: isCustomCourse ? customCourse : programme,
-            studentName: studentName || "STUDENT NAME",
-            registrationNumber: regNumber || "REGISTRATION NUMBER",
-            yearOfStudy,
-            organization,
-            supervisorName: supervisor,
-            academicYear: resolvedAcademicYear || "2024/2025",
-            content: generatedReport
-          };
-          if (selectedFormat === "doc") {
-            DocxCompilerEngine.downloadDocxFile(exportOptions);
+          const opts = buildExportOptions();
+          if (selectedFormat === "cover") {
+            DocxCompilerEngine.openCoverPageOnlyPdfWindow(opts);
           } else {
-            DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+            DocxCompilerEngine.openPdfPrintWindow(opts);
           }
         }}
       />
@@ -836,24 +944,79 @@ Follow these strict writing style instructions:
               </select>
             </div>
 
-            {/* VERIFIED TEMPLATE BADGE (ONLY IF A UNIVERSITY IS SELECTED) */}
+            {/* TEMPLATE STATUS BADGE & UNVERIFIED UNIVERSITY UPLOAD CALLOUT */}
             {selectedUniShortName && (
-              <div className="p-3.5 border rounded-xl bg-teal-50/60 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800/60 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
-                    <BadgeCheck className="size-4 text-teal-600 dark:text-teal-400" />
-                    {activeBlueprint.hasVerifiedSample
-                      ? `Official Format: ${activeBlueprint.institutionName} (${activeBlueprint.sourceFile})`
-                      : `National Standard: ${activeBlueprint.institutionName} (Upload custom guideline in Step 3 if available)`}
-                  </span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-300">
-                    {activeBlueprint.hasVerifiedSample ? "VERIFIED" : "STANDARD"}
-                  </span>
+              customSections.length > 0 ? (
+                <div className="p-3.5 border rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 space-y-1.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                      <BadgeCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      Custom Blueprint Active: {uploadedFileName || "Uploaded Sample"} ({customSections.length} Chapters Extracted)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearCustomTemplate}
+                      className="text-[11px] text-red-600 hover:text-red-700 dark:text-red-400 font-semibold flex items-center gap-1"
+                    >
+                      <Trash2 className="size-3" /> Reset to TCU Standard
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                    Your report will be built strictly around the {customSections.length} chapters and subsections extracted from your uploaded university sample report.
+                  </p>
                 </div>
-                <p className="text-[11px] text-teal-800 dark:text-teal-300">
-                  {activeBlueprint.chapters.length} Official Chapter Sections • Times New Roman (10pt Body, 14pt/12pt Headings) • Decimal Headings • Visual Diagrams & Comparative Tables
-                </p>
-              </div>
+              ) : activeBlueprint.hasVerifiedSample ? (
+                <div className="p-3.5 border rounded-xl bg-teal-50/60 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800/60 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                      <BadgeCheck className="size-4 text-teal-600 dark:text-teal-400" />
+                      Official Format: {activeBlueprint.institutionName} ({activeBlueprint.sourceFile})
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-300">
+                      VERIFIED
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-teal-800 dark:text-teal-300">
+                    {activeBlueprint.chapters.length} Official Chapter Sections • Times New Roman (10pt Body, 14pt/12pt Headings) • Decimal Headings • Visual Diagrams & Comparative Tables
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-amber-300 dark:border-amber-700/80 bg-amber-50/70 dark:bg-amber-950/30 space-y-3 shadow-sm">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
+                          No Official Verified Sample Report Found for {selectedUni?.shortName || activeBlueprint.institutionName}
+                        </h4>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+                          Upload Custom Sample
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                        To ensure your report is built strictly around your university&apos;s approved structure, upload your faculty&apos;s sample report or attachment guideline document (<strong>.PDF</strong>, <strong>.DOCX</strong>, <strong>.TXT</strong>).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-amber-200/60 dark:border-amber-800/50">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-dashed border-amber-400 dark:border-amber-600 hover:border-amber-500 rounded-lg text-xs font-semibold text-amber-900 dark:text-amber-200 cursor-pointer transition shadow-sm">
+                      <Upload className="size-4 text-amber-600" />
+                      <span>{isParsingFile ? "Parsing University Sample..." : "Upload Sample Report / Guideline (.PDF / .DOCX)"}</span>
+                      <input
+                        type="file"
+                        accept=".txt,.doc,.docx,.pdf"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={isParsingFile}
+                      />
+                    </label>
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400 text-center sm:text-left self-center font-medium">
+                      or proceed with TCU 5-Chapter Standard
+                    </span>
+                  </div>
+                </div>
+              )
             )}
 
             {/* LEVEL 2: COLLEGE / FACULTY */}
@@ -1475,10 +1638,19 @@ Follow these strict writing style instructions:
 
           <div className="space-y-2 border rounded-xl p-4 bg-slate-50/50 dark:bg-slate-800/30 max-h-72 overflow-y-auto">
             {outlineSections.map((sec, idx) => (
-              <div key={sec.id} className="p-3 bg-white dark:bg-slate-900 border rounded-lg flex items-center justify-between text-sm">
-                <div>
+              <div key={sec.id} className="p-3 bg-white dark:bg-slate-900 border rounded-lg flex items-start justify-between text-sm">
+                <div className="space-y-1">
                   <span className="font-semibold text-foreground block">{sec.title}</span>
-                  <span className="text-xs text-muted-foreground">{sec.description}</span>
+                  <span className="text-xs text-muted-foreground block">{sec.description}</span>
+                  {sec.subsections && sec.subsections.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {sec.subsections.map((sub: string, sIdx: number) => (
+                        <span key={sIdx} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+                          {sub}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs text-teal-600 dark:text-teal-400 font-mono font-bold shrink-0 ml-2">Section {idx + 1}</span>
               </div>
@@ -1596,17 +1768,17 @@ Follow these strict writing style instructions:
                   Preview & Edit
                 </Button>
 
-                {/* DOWNLOAD ACTIONS (INTEGRATED WITH PAYMENT DETECTION) */}
+                {/* DOWNLOAD ACTIONS (PDF ONLY PER UNREPORTTZ SPEC) */}
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => handleExport("doc")} 
+                  onClick={() => handleExport("cover")} 
                   disabled={!generatedReport} 
                   className="text-xs gap-1.5 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40"
-                  title="Export official Word (.docx) document"
+                  title="Export official university cover page only as PDF"
                 >
-                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <Download className="size-3.5" />}
-                  Word (.docx)
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <FileText className="size-3.5 text-teal-600" />}
+                  Cover Page (PDF)
                 </Button>
 
                 <Button 
@@ -1618,10 +1790,10 @@ Follow these strict writing style instructions:
                       ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                       : "bg-teal-600 hover:bg-teal-700 text-white"
                   }`}
-                  title={!isUnlocked ? "Complete payment to unlock and download PDF" : "Download official PDF document"}
+                  title={!isUnlocked ? "Complete payment to unlock and download full PDF" : "Download full official PDF document"}
                 >
                   {!isUnlocked ? <Lock className="size-3.5 text-amber-200" /> : <Download className="size-3.5" />}
-                  {isUnlocked ? "Download Official PDF" : "Unlock & Download PDF"}
+                  {isUnlocked ? "Download Full PDF" : "Unlock & Download PDF"}
                 </Button>
               </div>
             </div>
@@ -1647,19 +1819,95 @@ Follow these strict writing style instructions:
               }}
             >
               {isGenerating ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 py-16">
-                  <RefreshCw className="size-8 animate-spin text-primary" />
-                  <p className="text-sm font-medium">Generating {targetPages}-page official university report draft...</p>
-                  <p className="text-xs text-muted-foreground">Formatting institutional cover page, preliminary sections, organogram and process flowcharts...</p>
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-4 py-16 px-6 max-w-xl mx-auto">
+                  <div className="relative size-16 flex items-center justify-center">
+                    <RefreshCw className="size-12 animate-spin text-teal-600" />
+                    <span className="absolute font-bold text-xs text-slate-800 dark:text-slate-100">{generationProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-teal-600 h-full transition-all duration-500 rounded-full"
+                      style={{ width: `${generationProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{generationPhase || `Generating ${targetPages}-page official university report draft...`}</p>
+                    <p className="text-xs text-muted-foreground">Formatting institutional cover page, preliminary sections, organogram and process flowcharts...</p>
+                  </div>
                 </div>
               ) : canvasViewMode === "formatted" ? (
-                <div className="bg-white text-slate-900 border rounded-xl shadow-sm p-8 min-h-full font-serif leading-relaxed">
-                  <div
-                    className="prose max-w-none text-sm space-y-4"
-                    dangerouslySetInnerHTML={{
-                      __html: DocxCompilerEngine.formatContentToAcademicHtml(generatedReport)
-                    }}
-                  />
+                <div className="space-y-4">
+                  {/* Clean Print / Export Notice */}
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💡</span>
+                      <span><strong>University Print Standard:</strong> When downloading or printing via Chrome, uncheck <strong>Headers and footers</strong> in More Settings for clean margins without URL text.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="text-xs h-7 border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                        onClick={() => handleExport("cover")}
+                      >
+                        Print Cover Only (Free)
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white"
+                        onClick={() => handleExport("pdf")}
+                      >
+                        <Printer className="size-3.5 mr-1" /> Print / Save Full PDF
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Multi-Sheet A4 Canvas Preview */}
+                  <div className="a4-document-canvas rounded-xl overflow-y-auto max-h-[820px] border border-slate-200 dark:border-slate-800">
+                    {/* Sheet 1: Cover Page */}
+                    <div className="a4-document-sheet p-8 sm:p-12 relative flex flex-col justify-between">
+                      <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                        Sheet 1: Official University Cover
+                      </div>
+                      <div 
+                        dangerouslySetInnerHTML={{
+                          __html: DocxCompilerEngine.compileCoverPageHtml(effectiveExportOptions)
+                        }} 
+                      />
+                      <div className="text-center text-[10px] text-slate-400 font-sans mt-2">
+                        [Page 1 — Official Cover Page]
+                      </div>
+                    </div>
+
+                    {/* Sheets 2+: Preliminaries & Individual Chapters */}
+                    {contentSheets.length > 0 ? (
+                      contentSheets.map((sheetHtml, idx) => (
+                        <div key={idx} className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
+                          <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                            Sheet {idx + 2} of {contentSheets.length + 1}
+                          </div>
+                          <div 
+                            className="prose max-w-none text-slate-900"
+                            dangerouslySetInnerHTML={{ __html: sheetHtml }} 
+                          />
+                          <div className="text-center text-xs text-slate-500 font-serif mt-10 pt-4 border-t border-slate-200">
+                            {idx < effectiveCh1Index 
+                              ? `— ${DocxCompilerEngine.toRoman(idx + 1)} —` 
+                              : `— Page ${idx - effectiveCh1Index + 1} —`}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
+                        <div 
+                          className="prose max-w-none text-slate-900"
+                          dangerouslySetInnerHTML={{
+                            __html: DocxCompilerEngine.formatContentToAcademicHtml(generatedReport, effectiveExportOptions)
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="relative h-full">

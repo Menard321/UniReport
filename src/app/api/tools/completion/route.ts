@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
+import { UNIREPORT_SYSTEM_INSTRUCTION } from "@/lib/report-engine/orchestrator";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest) {
 
     // Domain-Specific System Instructions
     let resolvedSystemPrompt = systemPrompt;
-    if (toolId === "topic-assistant") {
+    if (toolId === "unreportTZ" || toolId === "phased-report") {
+      resolvedSystemPrompt = UNIREPORT_SYSTEM_INSTRUCTION;
+    } else if (toolId === "topic-assistant") {
       resolvedSystemPrompt = `You are a senior Tanzanian University Academic Advisor and Research Coordinator aligned with TCU regulations.
 Your mission is to generate 3 to 4 defense-ready, publication-grade academic research topic proposals for the student.
 

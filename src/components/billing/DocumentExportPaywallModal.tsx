@@ -217,10 +217,19 @@ export function DocumentExportPaywallModal({
             Unlock Official Academic Export
           </h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Remove all draft watermarks, get official university cover pages, and download publication-grade PDF reports.
+            Remove all draft watermarks, get official university cover pages, and download publication-grade PDF and editable Microsoft Word (DOCX) reports.
           </p>
 
-          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border text-[11px] font-mono text-slate-700 dark:text-slate-300">
+          <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+            <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+              <Check className="size-3 text-blue-600" /> Microsoft Word (.docx) Included
+            </span>
+            <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 flex items-center gap-1">
+              <Check className="size-3 text-teal-600" /> Academic PDF (.pdf) Included
+            </span>
+          </div>
+
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border text-[11px] font-mono text-slate-700 dark:text-slate-300">
             <GraduationCap className="size-3.5 text-teal-600" />
             <span className="truncate max-w-[280px] font-semibold">{documentTitle}</span>
           </div>
@@ -272,7 +281,7 @@ export function DocumentExportPaywallModal({
                         {selectedTier === "SINGLE" && <CheckCircle2 className="size-3.5 text-teal-600 shrink-0" />}
                       </div>
                       <p className="text-[10px] text-muted-foreground leading-tight">
-                        Unlock this document only with lifetime re-download.
+                        Unlock Microsoft Word (.docx) & PDF with lifetime re-download.
                       </p>
                     </div>
                     <div className="mt-2.5">

@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       content: options?.content || documentRecord?.content || "# ACADEMIC REPORT DRAFT"
     };
 
-    if (format !== "doc") {
+    if (format !== "doc" && format !== "docx") {
       const pdfHtml = DocxCompilerEngine.compileToPdfHtml(exportOptions);
       return NextResponse.json({
         success: true,
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Fallback if explicitly requested (.doc)
+    // Microsoft Word export (.doc / .docx compatible)
     const wordContentHtml = DocxCompilerEngine.compileToWordHtml(exportOptions);
     return NextResponse.json({
       success: true,

@@ -41,7 +41,7 @@ export function detectAcademicDiscipline(input: {
   activities?: string;
 }): AcademicDiscipline {
   const text = `${input.college || ""} ${input.programme || ""} ${input.taskDescription || ""} ${input.activities || ""}`.toLowerCase();
-  if (/comput|softwar|informat|programm|crypto|blockchain|wallet|checkout|api|web|database|network|cyber|it\b|ict\b|cs\b|bit\b|ceit\b/.test(text)) {
+  if (/comput|softwar|informat|programm|crypto|cypto|blockchain|wallet|checkout|payment|fintech|gateway|token|api|web|database|network|cyber|it\b|ict\b|cs\b|bit\b|ceit\b/.test(text)) {
     return "COMPUTING";
   }
   if (/agric|fisher|crop|soil|beekeep|animal|veterin|horticult/.test(text)) {
@@ -1548,14 +1548,11 @@ ${abbrevsTableHtml}
     }
 
     const steps = defaultPhases.map((phase, idx) => {
-      if (rawActivities[idx]) {
-        const act = rawActivities[idx];
-        const titleShort = act.slice(0, 32);
-        const descShort = act.length > 32 ? act.slice(32, 75) : "Execution according to departmental protocols";
+      if (rawActivities[idx] && rawActivities[idx].length <= 32 && !rawActivities[idx].includes(":")) {
         return {
           num: `0${idx + 1}`,
-          title: titleShort,
-          desc: descShort
+          title: rawActivities[idx],
+          desc: "Execution according to departmental protocols"
         };
       }
       return phase;
@@ -1613,7 +1610,17 @@ ${abbrevsTableHtml}
     isComputing?: boolean 
   }): string {
     const tools = (params.toolsUsed || "").split(",").map(t => t.trim()).filter(Boolean);
-    const adoptedTool = tools[0] || "Adopted Standardized Methodology";
+    let adoptedTool = tools[0] || "Adopted Technical Architecture";
+    if (adoptedTool.length > 25) {
+      const words = adoptedTool.split(" ");
+      let acc = "";
+      for (const w of words) {
+        if ((acc + " " + w).trim().length <= 25) {
+          acc = (acc + " " + w).trim();
+        } else break;
+      }
+      adoptedTool = acc || adoptedTool.slice(0, 22);
+    }
 
     return `<div style="margin: 20pt 0; page-break-inside: avoid;">
 <table class="academic-table" id="tbl-2-1" style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', serif; font-size: 9.5pt; line-height: 1.35; margin: 10pt 0;">
@@ -1623,7 +1630,7 @@ ${abbrevsTableHtml}
       <th style="padding: 6pt 8pt; text-align: left; border: 1px solid #cbd5e1; width: 24%;">Evaluation Dimension</th>
       <th style="padding: 6pt 8pt; text-align: left; border: 1px solid #cbd5e1; width: 24%;">Option A: Manual / Legacy Baseline</th>
       <th style="padding: 6pt 8pt; text-align: left; border: 1px solid #cbd5e1; width: 24%;">Option B: Intermediate / Standalone Tool</th>
-      <th style="padding: 6pt 8pt; text-align: left; border: 1px solid #cbd5e1; width: 28%; background: #e0f2fe;">Option C: ${adoptedTool.slice(0, 26)} (Adopted)</th>
+      <th style="padding: 6pt 8pt; text-align: left; border: 1px solid #cbd5e1; width: 28%; background: #e0f2fe;">Option C: ${adoptedTool} (Adopted)</th>
     </tr>
   </thead>
   <tbody>
@@ -1809,6 +1816,463 @@ Academic Supervisor's Name: ${academicSupervisor}
   }
 
   /**
+   * Normalizes department name so it never renders awkward abbreviations (e.g. "Within the IT").
+   */
+  static normalizeDepartment(dept?: string): string {
+    const raw = (dept || "").trim();
+    if (!raw) return "Technical Operations Department";
+    if (raw.toUpperCase() === "IT") return "IT Department";
+    if (raw.toUpperCase() === "ICT") return "ICT Department";
+    if (raw.toUpperCase() === "CS") return "Department of Computer Science";
+    if (raw.toUpperCase() === "HR") return "Human Resources Department";
+    if (raw.toUpperCase() === "QA") return "Quality Assurance Department";
+    if (/department|unit|division|directorate|section|squad/i.test(raw)) return raw;
+    return `${raw} Department`;
+  }
+
+  /**
+   * Dynamically synthesizes publication-grade Chapter 1 (Introduction to Host Organization & Placement Mandate).
+   */
+  static synthesizeChapter1Content(params: {
+    org: string;
+    dept: string;
+    uni: string;
+    sup: string;
+    prog: string;
+    reportTitle: string;
+    discipline: AcademicDiscipline;
+    organogram: string;
+    staffCadreTable: string;
+    chapter1SafetySection: string;
+    subList?: string[];
+  }): string {
+    const { org, dept, uni, sup, prog, reportTitle, discipline, organogram, staffCadreTable, chapter1SafetySection, subList } = params;
+
+    const cleanSubTitle = (raw: string, num: string) => {
+      const stripped = raw.replace(/^[0-9]+(?:\.[0-9]+)*[\.\)]?\s*/i, "").trim();
+      return `${num} ${stripped}`;
+    };
+
+    const findSub = (pattern: RegExp, fallbackText: string, num: string) => {
+      if (!subList || subList.length === 0) return `${num} ${fallbackText}`;
+      const found = subList.find(s => pattern.test(s));
+      if (found) {
+        return cleanSubTitle(found, num);
+      }
+      return `${num} ${fallbackText}`;
+    };
+
+    const s1 = findSub(/profile|background|histor/i, "Profile and Historical Background of Host Enterprise", "1.1");
+    const s2 = findSub(/vision|mission|function|objective/i, "Vision, Mission and Core Strategic Functions", "1.2");
+    const s3 = findSub(/govern|administ|structure|organog/i, "Organizational Governance & Administrative Structure", "1.3");
+    const s4 = findSub(/cadre|staff|role|job|description/i, "Technical Cadre Profiles, Job Descriptions and Staff Roles", "1.4");
+    let s6 = findSub(/mandate|role.*department|department.*role|strategic/i, "Strategic Mandate and Role of the Department in Enterprise Operations", "1.6");
+    if (/1\.5/i.test(s6)) {
+      s6 = cleanSubTitle(s6, "1.6");
+    }
+
+    return `
+${s1}
+I completed my field practical training attachment at ${org}. The host organization is an established enterprise operating within Tanzania, playing an integral role in delivering professional services, operational solutions, and technical infrastructure across the national and East African economic landscape. Founded with a strategic vision to enhance productivity and service reliability through modern professional standards, ${org} complies with national statutory frameworks, sector regulations, and industry benchmarks.
+
+During my industrial placement, I was embedded within the active operational environment of the ${dept} under the mentorship and direct supervision of ${sup}. The enterprise maintains well-equipped operational facilities, standardized technical workstations, testing environments, and collaborative project rooms. Working within this environment allowed me to observe firsthand how an established commercial entity coordinates cross-functional handoffs, enforces quality assurance protocols, complies with statutory guidelines, and delivers mission-critical technical deliverables to clients and community stakeholders.
+
+${s2}
+The strategic direction of ${org} is guided by clear institutional mandates designed to ensure operational excellence, sustainability, and competitive leadership in Tanzania and the wider East African Community (EAC).
+
+The official Vision of ${org} is:
+"To become the most trusted, innovative, and sustainable operational and technical solutions leader in Tanzania, accelerating economic modernization, industrial efficiency, and local capacity development."
+
+The official Mission of ${org} is:
+"To deliver robust, high-performance, and compliant technical services that resolve complex operational challenges for our clients, achieved through uncompromising engineering standards, continuous innovation, and human capital development."
+
+The core functions and operational duties of ${org} comprise:
+1. Providing reliable, high-availability technical services and system implementations conforming to national and international regulatory standards.
+2. Continuous infrastructure health monitoring, preventative maintenance, and quality auditing to guarantee high operational uptime across client integrations.
+3. Cultivating human capital through industry-academia partnerships, mentorship of technical trainees, and conducting practical training workshops in collaboration with Tanzanian higher learning institutions like ${uni}.
+4. Adhering strictly to national statutory policies, occupational health and safety benchmarks, and legal data privacy mandates.
+
+<!-- PAGE_BREAK -->
+${s3}
+The administrative hierarchy of ${org} is structured to facilitate agile decision-making, strict accountability, and cross-functional synergy across technical, operational, and administrative units. The overall governance is led by the Board of Directors and the Managing Director, who formulate strategic institutional objectives and allocate resource budgets.
+
+Under executive leadership, departmental heads supervise specialized divisions, including technical operations, finance, administration, and quality compliance. The technical division houses core operational units where daily implementation and maintenance take place. Practical training trainees are formally integrated into specialized project squads under the mentorship of designated senior professionals and departmental leads.
+
+${organogram}
+
+${s4}
+Within the ${dept}, personnel are organized into distinct technical cadres according to their academic specializations and engineering competencies. The squad operates through distributed peer-review systems, scheduled operational sprints, and daily stand-up synchronization meetings to ensure uninterrupted production workflows.
+
+${staffCadreTable}
+
+<!-- PAGE_BREAK -->
+${chapter1SafetySection}
+
+${s6}
+The ${dept} serves as the vital technical backbone and operational engine of ${org}. Its overarching responsibility is to design, deploy, and maintain the organization's mission-critical services, technical workflows, and client-facing deliverables. By enforcing modular workflows, rigorous quality testing, and robust error logging, the department ensures that all operational activities meet stringent Service Level Agreements (SLAs) with zero unplanned disruptions.
+
+Furthermore, the department acts as the primary incubator for technical research and process optimization within the enterprise. It evaluates emerging industry methodologies, automated workflows, and quality management frameworks to identify opportunities for reducing operational latency, lowering overhead costs, and enhancing service reliability. During my attachment, the department served as an exemplary learning environment that bridged the gap between abstract academic theories taught at ${uni} and the rigorous demands of industrial practice in Tanzania.`;
+  }
+
+  /**
+   * Dynamically synthesizes publication-grade Chapter 2 (Practical Activities & Main Technical Assignment).
+   */
+  static synthesizeChapter2Content(params: {
+    org: string;
+    dept: string;
+    uni: string;
+    sup: string;
+    prog: string;
+    reportTitle: string;
+    discipline: AcademicDiscipline;
+    activitiesClean: string;
+    toolsClean: string;
+    flowchart: string;
+    comparisonTable: string;
+    subList?: string[];
+  }): string {
+    const { org, dept, uni, sup, prog, reportTitle, discipline, activitiesClean, toolsClean, flowchart, comparisonTable, subList } = params;
+
+    const cleanSubTitle = (raw: string, num: string) => {
+      const stripped = raw.replace(/^[0-9]+(?:\.[0-9]+)*[\.\)]?\s*/i, "").trim();
+      return `${num} ${stripped}`;
+    };
+
+    const findSub = (pattern: RegExp, fallbackText: string, num: string) => {
+      if (!subList || subList.length === 0) return `${num} ${fallbackText}`;
+      const found = subList.find(s => pattern.test(s));
+      if (found) {
+        return cleanSubTitle(found, num);
+      }
+      return `${num} ${fallbackText}`;
+    };
+
+    const s1 = findSub(/activit|task|duties|problem|context/i, "Problem Identification and Practical Engineering Context", "2.1");
+    const s2 = findSub(/workflow|process|lifecycle|stage/i, "Operational Process Architecture & Workflow Stages", "2.2");
+    const s3 = findSub(/tool|equipment|software|stack|technolog/i, "Tools, Equipment and Software Stacks Handled", "2.3");
+    const s4 = findSub(/evaluat|compar|matrix|alternat|analys/i, "Technical & Methodological Evaluation Matrix", "2.4");
+    const s5 = findSub(/execut|step|implement|method/i, "Step-by-Step Task Execution and Practical Implementation", "2.5");
+    const s6 = findSub(/qualit|assuran|test|sign|handover|deliverab/i, "Quality Assurance, Validation Testing & Technical Sign-off", "2.6");
+
+    const rawActivityLines = activitiesClean
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !/^(activities|tasks|operational tasks|duties|practical tasks)[:\s]*$/i.test(l));
+
+    const formattedActivitiesList = rawActivityLines.length > 0
+      ? rawActivityLines.map((line, idx) => `${idx + 1}. ${line.replace(/^[0-9]+[\.\)]\s*/, "")}`).join("\n")
+      : `1. Conducted technical analysis and operational workflow assessments directly aligned with ${reportTitle}.\n2. Implemented standard operating procedures and prepared diagnostic test benchmarks.\n3. Executed core functional tasks, collected empirical telemetry data, and resolved operational bottlenecks.\n4. Compiled detailed technical log records and participated in departmental progress briefings.`;
+
+    const executionSteps = rawActivityLines.length > 0
+      ? rawActivityLines.map((line, idx) => `   - Activity ${idx + 1}: ${line.replace(/^[0-9]+[\.\)]\s*/, "")}`).join("\n")
+      : "   - Core Field Tasks: Execution of assigned engineering duties conforming to departmental standards.";
+
+    const rawToolList = toolsClean.split(",").map(t => t.trim()).filter(Boolean);
+    const toolsDisplay = rawToolList.length > 0 ? rawToolList.join(", ") : "Standard Engineering Toolchain, Diagnostic Equipment, and Analysis Software";
+
+    return `
+${s1}
+A core pedagogical objective of the industrial practical training curriculum at ${uni} is to immerse undergraduate students in authentic operating environments, enabling them to apply theoretical principles taught in the ${prog} curriculum to tangible workplace challenges. Upon reporting to the ${dept} at ${org}, I participated in comprehensive technical orientations and was assigned to the core operational squad under the direct supervision of ${sup}.
+
+The industrial challenge and practical duties addressed during my placement centered upon "${reportTitle}". In conventional operations within the sector in Tanzania, institutions frequently face operational bottlenecks, including process latency, manual data handling errors, and system reliability challenges. To address these limitations, ${org} initiated a targeted implementation focusing on ${reportTitle}. My assignment within the ${dept} was to actively participate in executing these activities, configuring necessary tools, ensuring compliance with institutional standards, and maintaining systematic documentation.
+
+Core operational tasks assigned during the attachment:
+
+${formattedActivitiesList}
+
+To execute these technical assignments with high engineering precision, all tasks were coordinated through structured sprint cycles, following standard operating procedures (SOPs) and departmental verification guidelines established by ${sup}.
+
+<!-- PAGE_BREAK -->
+${s2}
+The practical technical project followed a disciplined engineering lifecycle comprising five sequential phases: Problem Formulation, Setup & Calibration, Core Implementation, Quality Verification, and Production Handover.
+
+${flowchart}
+
+1. Phase 01: Problem Definition & Scoping — Reviewing operational requirements, technical specifications, and regulatory standards applicable to ${reportTitle}.
+2. Phase 02: Toolchain Preparation & Calibration Setup — Configuring developer workstations, instrument calibration, and initializing required runtime dependencies.
+3. Phase 03: Practical Implementation & Core Execution — Active development, hands-on assembly, parameter adjustments, and core module integration.
+4. Phase 04: Quality Assurance & Diagnostic Testing — Validating outputs against institutional benchmarks, edge-case simulations, and automated telemetry logging.
+5. Phase 05: Technical Handover & Supervisor Sign-off — Demonstrating completed deliverables to ${sup}, submitting documentation, and obtaining formal departmental sign-off.
+
+<!-- PAGE_BREAK -->
+${s3}
+The execution of practical duties required daily interaction with modern tools, diagnostic instruments, and software environments:
+
+${toolsDisplay}
+
+Each tool was verified, calibrated, and configured conforming to standard operating procedures:
+1. Primary Operational Environment: Provided the core workspace for executing assigned tasks, authoring configurations, and running diagnostic benchmarks.
+2. Verification & Testing Utilities: Enabled isolated pre-deployment testing, telemetry inspection, and error tracing under simulated high-throughput conditions.
+3. Monitoring & Data Persistence Stacks: Ensured reliable data logging, relational state management, and real-time operational parameter visibility.
+4. Version Control & Documentation Tools: Supported collaborative sprint handovers, change tracking, and traceable audit histories.
+
+<!-- PAGE_BREAK -->
+${s4}
+To determine the most viable operational strategy for ${reportTitle}, our technical squad evaluated alternative methods across operational precision, regulatory compliance, resource efficiency, and long-term maintainability:
+
+${comparisonTable}
+
+The evaluation confirmed that Option C (the adopted standardized architecture) delivers deterministic, reproducible results, guarantees full regulatory compliance, and provides extensible scalability for future enterprise requirements.
+
+<!-- PAGE_BREAK -->
+${s5}
+Task execution followed a structured daily engineering workflow under the supervision of ${sup}:
+1. Morning Briefing & Safety Alignment: Reviewed daily sprint goals, technical parameters, and safety protocols with supervisor ${sup}.
+2. Environment Setup & Calibration: Inspected workstations, software environments, and diagnostic tools (${toolsDisplay}) prior to commencing work.
+3. Methodological Execution:
+${executionSteps}
+4. Observations & Telemetry Logging: Recorded all operational measurements, diagnostic logs, and anomaly traces in the daily record book.
+5. Technical Handover: Demonstrated completed deliverables to ${sup} for formal verification and sign-off.
+
+<!-- PAGE_BREAK -->
+${s6}
+During practical execution, all operational milestones for ${reportTitle} were subjected to rigorous quality assurance protocols. Defensive measures—including input validation, error logging, and boundary checks—were instituted to guarantee high operational reliability. At the conclusion of the training period, all assigned operational deliverables were successfully demonstrated, tested, and endorsed by ${sup}.`;
+  }
+
+  /**
+   * Dynamically synthesizes publication-grade Chapter 3 (Challenges Encountered & Industrial Problem Solving).
+   */
+  static synthesizeChapter3Content(params: {
+    org: string;
+    dept: string;
+    uni: string;
+    sup: string;
+    prog: string;
+    reportTitle: string;
+    discipline: AcademicDiscipline;
+    challengesClean: string;
+    table31Html: string;
+    subList?: string[];
+  }): string {
+    const { org, dept, uni, sup, prog, reportTitle, discipline, challengesClean, table31Html, subList } = params;
+
+    const cleanSubTitle = (raw: string, num: string) => {
+      const stripped = raw.replace(/^[0-9]+(?:\.[0-9]+)*[\.\)]?\s*/i, "").trim();
+      return `${num} ${stripped}`;
+    };
+
+    const findSub = (pattern: RegExp, fallbackText: string, num: string) => {
+      if (!subList || subList.length === 0) return `${num} ${fallbackText}`;
+      const found = subList.find(s => pattern.test(s));
+      if (found) {
+        return cleanSubTitle(found, num);
+      }
+      return `${num} ${fallbackText}`;
+    };
+
+    const s1 = findSub(/challenge|problem|bottleneck|obstacle/i, "Identification of Practical Challenges and Operational Bottlenecks", "3.1");
+    const s2 = findSub(/root|cause|method|troubleshoot|solving/i, "Systematic Root-Cause Problem Solving Methodology", "3.2");
+    const s3 = findSub(/gap|mitigat|lesson|prevent|safeguard/i, "Operational Gaps and Institutional Corrective Mitigations", "3.3");
+
+    const rawChallengeLines = challengesClean
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !/^(challenges|problems|operational challenges|bottlenecks)[:\s]*$/i.test(l));
+
+    const challengeListFormatted = rawChallengeLines.length > 0
+      ? rawChallengeLines.map((line, idx) => `${idx + 1}. ${line.replace(/^[0-9]+[\.\)]\s*/, "")}`).join("\n")
+      : `1. Parameter deviations and equipment calibration variances during operational load; mitigated through systematic recalibration under supervisor guidance.\n2. Service latency and network throttling from external endpoints during peak operational hours; mitigated by configuring caching and retry backoffs.`;
+
+    return `
+${s1}
+Transitioning from classroom theoretical modeling to active industrial operations exposed me to real-world operating constraints and technical bottlenecks. Industrial systems operate under dynamic environmental, network, and resource factors that require continuous diagnostic vigilance.
+
+During my placement at ${org}, the primary operational challenges encountered centered upon:
+
+${challengeListFormatted}
+
+These obstacles arose from external network variations, legacy hardware constraints, and high concurrent operational loads. Addressing these challenges required structured problem-solving, root-cause isolation, and strict adherence to standard operating procedures under the guidance of ${sup}.
+
+<!-- PAGE_BREAK -->
+${s2}
+When operational anomalies occurred, our technical squad applied a disciplined four-step diagnostic methodology:
+1. Telemetry and Error Log Inspection: Examined system logs, diagnostic telemetry, and physical symptoms to pinpoint the exact failure boundary.
+2. Controlled Sandbox/Bench Testing: Re-tested the issue in an isolated staging or laboratory environment to reproduce and verify root causes without affecting live operations.
+3. Incremental Remediation: Tested remedies sequentially against departmental standard operating procedures (SOPs) to ensure systemic stability.
+4. Senior Supervisor Consultation: Reviewed complex anomalies with ${sup} to implement robust, long-term engineering mitigations.
+
+${table31Html}
+
+${s3}
+To prevent recurring anomalies, our technical unit established preventative maintenance schedules, automated monitoring alerts, digital inspection checklists, and updated standard operating documentation. These institutional safeguards ensured high service reliability and created an enduring foundation for future student attachments.`;
+  }
+
+  /**
+   * Dynamically synthesizes publication-grade Chapter 4 (Knowledge, Skills Acquired & Curriculum Synthesis).
+   */
+  static synthesizeChapter4Content(params: {
+    org: string;
+    dept: string;
+    uni: string;
+    sup: string;
+    prog: string;
+    reportTitle: string;
+    discipline: AcademicDiscipline;
+    keyLearningsClean: string;
+    toolsClean: string;
+    chapter4Coursework: string;
+    subList?: string[];
+  }): string {
+    const { org, dept, uni, sup, prog, reportTitle, discipline, keyLearningsClean, toolsClean, chapter4Coursework, subList } = params;
+
+    const cleanSubTitle = (raw: string, num: string) => {
+      const stripped = raw.replace(/^[0-9]+(?:\.[0-9]+)*[\.\)]?\s*/i, "").trim();
+      return `${num} ${stripped}`;
+    };
+
+    const findSub = (pattern: RegExp, fallbackText: string, num: string) => {
+      if (!subList || subList.length === 0) return `${num} ${fallbackText}`;
+      const found = subList.find(s => pattern.test(s));
+      if (found) {
+        return cleanSubTitle(found, num);
+      }
+      return `${num} ${fallbackText}`;
+    };
+
+    const s1 = findSub(/skill|competenc|learn|knowledge|technical/i, "Practical Technical Competencies and Tool Mastery Developed", "4.1");
+    const s2 = findSub(/soft|habit|communication|team/i, "Professional Workplace Habits and Soft Skills", "4.2");
+    const s3 = findSub(/course|curriculum|subject|academic|link/i, "Connecting Fieldwork with Degree Coursework at University", "4.3");
+    const s4 = findSub(/pdpa|statut|law|confidential|regulation|ethic/i, "Professional Ethics, Data Privacy and Statutory Compliance", "4.4");
+
+    const rawLearningsLines = keyLearningsClean
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !/^(key learnings|learnings|skills acquired|competencies)[:\s]*$/i.test(l));
+
+    const learningsFormatted = rawLearningsLines.length > 0
+      ? rawLearningsLines.map((line, idx) => `${idx + 1}. ${line.replace(/^[0-9]+[\.\)]\s*/, "")}`).join("\n")
+      : `1. Comprehensive understanding of theoretical curriculum application within authentic Tanzanian industrial settings.\n2. Hands-on development of diagnostic technical competencies, equipment safety standards, and operational troubleshooting.\n3. Professional enhancement in workplace ethics, time management, technical reporting, and cross-functional collaboration.`;
+
+    return `
+${s1}
+The industrial field attachment at ${org} provided intensive hands-on experience, bridging abstract concepts taught in higher learning institutions with tangible workplace competencies.
+
+Key practical competencies and technical skills developed:
+
+${learningsFormatted}
+
+Daily interaction with professional tools (${toolsClean || "standard industrial toolsets"}) significantly enhanced my technical self-reliance, analytical troubleshooting capacity, and understanding of industrial standard operating procedures.
+
+${s2}
+In addition to technical proficiencies, the practical training experience fostered essential professional soft skills:
+1. Technical Communication: Articulated daily progress, documented operational logs, and delivered concise technical briefings during morning standups.
+2. Cross-Functional Collaboration: Worked productively alongside engineers, technicians, and operations personnel across diverse cadres.
+3. Time Management and Workplace Discipline: Maintained punctual attendance, met project deadlines, and adhered strictly to supervisor directives.
+
+<!-- PAGE_BREAK -->
+${chapter4Coursework}
+
+${s4}
+Throughout the attachment period, I strictly adhered to professional workplace ethics, confidentiality protocols, and personal data protection regulations conforming to the Tanzania Personal Data Protection Act (PDPA) No. 11 of 2022 and institutional codes of conduct.`;
+  }
+
+  /**
+   * Dynamically synthesizes publication-grade Chapter 5 (Conclusions & Strategic Recommendations).
+   */
+  static synthesizeChapter5Content(params: {
+    org: string;
+    dept: string;
+    uni: string;
+    sup: string;
+    prog: string;
+    reportTitle: string;
+    discipline: AcademicDiscipline;
+    toolsClean: string;
+    subList?: string[];
+  }): string {
+    const { org, dept, uni, sup, prog, reportTitle, discipline, toolsClean, subList } = params;
+
+    const cleanSubTitle = (raw: string, num: string) => {
+      const stripped = raw.replace(/^[0-9]+(?:\.[0-9]+)*[\.\)]?\s*/i, "").trim();
+      return `${num} ${stripped}`;
+    };
+
+    const findSub = (pattern: RegExp, fallbackText: string, num: string) => {
+      if (!subList || subList.length === 0) return `${num} ${fallbackText}`;
+      const found = subList.find(s => pattern.test(s));
+      if (found) {
+        return cleanSubTitle(found, num);
+      }
+      return `${num} ${fallbackText}`;
+    };
+
+    const s1 = findSub(/conclus/i, "Comprehensive Practical Training Conclusion", "5.1");
+    const s2 = findSub(/recommend.*(?:host|company|enterprise|industry|org)|to\s+(?:host|company|enterprise|org)/i, `Strategic Recommendations to the Host Enterprise (${org})`, "5.2");
+    const s3 = findSub(/recommend.*(?:uni|institution|college|academic|board)|to\s+(?:uni|institution|college|school)/i, `Actionable Recommendations to the University Academic Board (${uni})`, "5.3");
+    const s4 = findSub(/advice|student|guidance|future|incoming/i, "Guidance and Practical Advice for Incoming Students", "5.4");
+
+    return `
+${s1}
+My industrial field practical training attachment at ${org} under the direct supervision of ${sup} was a successful and transformative experience. It fulfilled all prescribed academic objectives established by ${uni}, providing an authentic bridge between classroom theoretical coursework in ${prog} and the practical realities of industrial operations in Tanzania. Participating in active departmental workflows, troubleshooting authentic operational bottlenecks, and adhering to strict industry standards deepened my technical competencies and reinforced my professional preparation for future engineering practice.
+
+${s2}
+Based on my observations during the attachment period, I respectfully submit the following strategic recommendations to the management of ${org}:
+1. Standardized Trainee Onboarding Toolkits: Develop pre-configured developer toolkits, sandbox environments, and structured onboarding documentation to accelerate the productivity of incoming student interns.
+2. Scheduled Preventative Maintenance: Maintain regular servicing and recalibration schedules for key operational equipment and toolchains (${toolsClean || "technical infrastructure"}) to minimize unexpected operational downtime.
+3. Institutional Academic Partnerships: Strengthen long-term collaboration with ${uni} through joint technical workshops, hackathons, and recurring internship pipelines to cultivate local human capacity.
+
+${s3}
+To further enhance the pedagogical impact of industrial practical training, I submit the following actionable recommendations to the academic board of ${uni}:
+1. Expansion of Practical Laboratory Hours: Incorporate more hands-on laboratory sessions utilizing industry-standard tools (${toolsClean || "modern industrial toolchains"}) into the core curriculum before students embark on field attachments.
+2. Formal Industry Linkages: Establish formal memoranda of understanding (MoUs) with leading host organizations like ${org} to secure structured, high-value attachment placements for undergraduate students.
+3. Pre-Attachment Technical Clinics: Organize specialized refresher workshops covering workplace safety regulations, diagnostic troubleshooting methodology, and professional ethics prior to student deployment.
+
+${s4}
+For future undergraduate students undertaking industrial practical training, I offer the following practical advice:
+1. Adopt a Proactive Mindset: Take initiative to study departmental architectures, ask clarifying questions, and actively volunteer for complex technical tasks.
+2. Maintain Rigorous Daily Logbooks: Record daily technical activities, tools used, measurements taken, and solutions applied every evening to maintain an authentic audit trail.
+3. Uphold Professional Ethics: Strictly respect workplace confidentiality, data privacy regulations, and occupational safety guidelines at all times.`;
+  }
+
+  /**
+   * If an external AI model outputs rich academic chapters but omits SVGs or preliminaries,
+   * this helper safely preserves and re-injects the Cover Page, Preliminaries, Organogram,
+   * Flowchart, and Comparative Tables from the base report.
+   */
+  static reinjectVisualsIfMissing(aiReport: string, baseReport: string): string {
+    if (!aiReport || !baseReport) return aiReport || baseReport;
+    let result = aiReport;
+
+    if (!result.includes("DECLARATION") && baseReport.includes("DECLARATION")) {
+      const prelimEndIdx = baseReport.indexOf("# CHAPTER 1");
+      if (prelimEndIdx > 0) {
+        const prelimPart = baseReport.slice(0, prelimEndIdx);
+        result = `${prelimPart}\n\n${result}`;
+      }
+    }
+
+    if (!result.includes("fig-1-1") && baseReport.includes("fig-1-1")) {
+      const organogramMatch = baseReport.match(/<figure class="academic-figure" id="fig-1-1"[\s\S]*?<\/figure>/i);
+      if (organogramMatch) {
+        result = result.replace(/(1\.3[^\n]+(?:\n[^\n]+){1,3})/i, `$1\n\n${organogramMatch[0]}\n`);
+      }
+    }
+
+    if (!result.includes("fig-2-1") && baseReport.includes("fig-2-1")) {
+      const flowchartMatch = baseReport.match(/<figure class="academic-figure" id="fig-2-1"[\s\S]*?<\/figure>/i);
+      if (flowchartMatch) {
+        result = result.replace(/(2\.2[^\n]+(?:\n[^\n]+){1,3})/i, `$1\n\n${flowchartMatch[0]}\n`);
+      }
+    }
+
+    if (!result.includes("tbl-2-1") && baseReport.includes("tbl-2-1")) {
+      const table21Match = baseReport.match(/<table class="academic-table" id="tbl-2-1"[\s\S]*?<\/table>\s*<\/div>/i);
+      if (table21Match) {
+        result = result.replace(/(2\.4[^\n]+(?:\n[^\n]+){1,3})/i, `$1\n\n<div style="margin: 20pt 0; page-break-inside: avoid;">\n${table21Match[0]}\n`);
+      }
+    }
+
+    if (!result.includes("tbl-3-1") && baseReport.includes("tbl-3-1")) {
+      const table31Match = baseReport.match(/<table class="academic-table" id="tbl-3-1"[\s\S]*?<\/table>\s*<\/div>/i);
+      if (table31Match) {
+        result = result.replace(/(3\.2[^\n]+(?:\n[^\n]+){1,3})/i, `$1\n\n<div style="margin: 20pt 0; page-break-inside: avoid;">\n${table31Match[0]}\n`);
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Generates exhaustive, publication-grade academic report matching official institutional standards.
    * Includes Cover Page, Preliminary Pages, Chapters 1-5, Figures/Organograms, Comparative Tables, References, and Appendices.
    */
@@ -1836,7 +2300,7 @@ Academic Supervisor's Name: ${academicSupervisor}
     uploadedTemplateName?: string;
   }): string {
     const org = params.organization || "HOST ENTERPRISE";
-    const dept = params.department || "TECHNICAL OPERATIONS DEPARTMENT";
+    const dept = this.normalizeDepartment(params.department);
     const uni = params.university || "Higher Learning Institution";
     const prog = params.programme || "Degree Programme";
     const sup = params.supervisor || "Field Supervisor";
@@ -1910,119 +2374,73 @@ Academic Supervisor's Name: ${academicSupervisor}
 
         let body = "";
         if (idx === 0) {
-          body = `
-${subList[0] || `${chNum}.1 Profile and Background of Host Organization`}
-I completed my field practical training attachment at ${org}. The host organization was established to provide high-quality services and technical solutions in Tanzania, operating in compliance with national statutory frameworks. During my placement within the ${dept}, I actively participated in day-to-day operations under the supervision of ${sup}.
-
-${subList[1] || `${chNum}.2 Vision, Mission and Core Functions`}
-The mission of ${org} is to deliver reliable technical services, maintain rigorous quality standards, and continually optimize operational processes. Its vision is to be a leading organization in Tanzania and East Africa by adopting modern technology and developing local human capacity.
-
-Core functions include:
-1. Providing reliable daily operational and technical services according to national standards.
-2. Routine inspection, monitoring, and maintenance of departmental systems and infrastructure.
-3. Fostering human capital development in collaboration with Tanzanian higher learning institutions like ${uni}.
-4. Adhering strictly to occupational safety, environmental protection, and legal data privacy mandates.
-
-<!-- PAGE_BREAK -->
-${subList[2] || `${chNum}.3 Organizational Governance & Administrative Structure`}
-The administrative hierarchy of ${org} is structured to facilitate agile decision-making, strict accountability, and cross-functional synergy.
-
-${organogram}
-
-${subList[3] || `${chNum}.4 Job Descriptions and Technical Cadre Roles`}
-Within the ${dept}, personnel are organized into distinct technical cadres according to their academic specializations and engineering competencies.
-
-${staffCadreTable}
-
-<!-- PAGE_BREAK -->
-${chapter1SafetySection}
-
-${subList[4] || `${chNum}.6 Departmental Role in Enterprise Operations`}
-The ${dept} serves as the primary technical engine of ${org}, ensuring continuous service delivery and providing an authentic bridge between classroom theory at ${uni} and industrial practice.
-`;
+          body = this.synthesizeChapter1Content({
+            org,
+            dept,
+            uni,
+            sup,
+            prog,
+            reportTitle,
+            discipline,
+            organogram,
+            staffCadreTable,
+            chapter1SafetySection,
+            subList
+          });
         } else if (idx === 1) {
-          body = `
-${subList[0] || `${chNum}.1 Practical Problem Context and Assigned Tasks`}
-A core pedagogical objective of practical training at ${uni} is to immerse undergraduate students in authentic industrial environments. Upon reporting to the ${dept} at ${org}, I was assigned to work on technical duties directly related to ${reportTitle}.
-
-Core operational tasks assigned:
-${activitiesClean}
-
-${subList[1] || `${chNum}.2 Operational Workflow & Execution Stages`}
-Technical duties were carried out in distinct phases: Problem Identification, Tool Preparation, Practical Execution, Quality Testing, and Handover.
-
-<!-- PAGE_BREAK -->
-${flowchart}
-
-${subList[2] || `${chNum}.3 Tools, Equipment and Technologies Handled`}
-The execution of practical tasks involved daily interaction with modern tools and equipment:
-${toolsClean}
-
-Each tool was verified and calibrated prior to use conforming to standard operating procedures.
-
-<!-- PAGE_BREAK -->
-${subList[3] || `${chNum}.4 Technical & Methodological Evaluation Matrix`}
-Alternative technical methods were evaluated across reliability, security, maintainability, and resource efficiency:
-
-${comparisonTable}
-
-<!-- PAGE_BREAK -->
-${subList[4] || `${chNum}.5 Step-by-Step Task Execution and Handover`}
-Task execution followed a structured engineering workflow:
-1. Morning Briefing: Reviewed sprint goals and safety precautions with supervisor ${sup}.
-2. Preparation & Calibration: Set up and verified required tools (${toolsClean}) before starting duties.
-3. Practical Execution:
-${activitiesSteps}
-4. Observations & Logging: Recorded measurements and telemetry in the daily logbook.
-5. Daily Technical Handover: Submitted completed tasks to ${sup} for verification and sign-off.
-`;
+          body = this.synthesizeChapter2Content({
+            org,
+            dept,
+            uni,
+            sup,
+            prog,
+            reportTitle,
+            discipline,
+            activitiesClean,
+            toolsClean,
+            flowchart,
+            comparisonTable,
+            subList
+          });
         } else if (idx === 2) {
-          body = `
-${subList[0] || `${chNum}.1 Identification of Technical Challenges`}
-Transitioning to an authentic industrial setting exposed me to real-world operating constraints:
-${challengesClean}
-
-${subList[1] || `${chNum}.2 Root Cause Analysis and Problem-Solving Strategy`}
-Technical anomalies were diagnosed using systematic troubleshooting:
-1. Root-Cause Inspection: Inspected logs, diagnostic indicators, and physical symptoms.
-2. Controlled Mitigation: Tested remedies sequentially against standard operating procedures.
-3. Supervisor Consultation: Reviewed complex anomalies with ${sup}.
-
-<!-- PAGE_BREAK -->
-${table31Html}
-
-${subList[2] || `${chNum}.3 Operational Gaps and Corrective Mitigations`}
-To prevent recurring anomalies, preventative maintenance routines, updated checklists, and standardized digital documentation were established.
-`;
+          body = this.synthesizeChapter3Content({
+            org,
+            dept,
+            uni,
+            sup,
+            prog,
+            reportTitle,
+            discipline,
+            challengesClean,
+            table31Html,
+            subList
+          });
         } else if (idx === 3) {
-          body = `
-${subList[0] || `${chNum}.1 Practical Skills and Technical Competencies Developed`}
-The field attachment provided intensive hands-on experience:
-${keyLearningsClean}
-
-${subList[1] || `${chNum}.2 Soft Skills and Professional Workplace Habits`}
-1. Clear Technical Communication: Articulated technical progress during daily standups and reports.
-2. Team Collaboration: Worked productively with multidisciplinary colleagues.
-3. Time Management: Maintained punctual attendance and met assigned deadlines.
-
-<!-- PAGE_BREAK -->
-${chapter4Coursework}
-`;
+          body = this.synthesizeChapter4Content({
+            org,
+            dept,
+            uni,
+            sup,
+            prog,
+            reportTitle,
+            discipline,
+            keyLearningsClean,
+            toolsClean,
+            chapter4Coursework,
+            subList
+          });
         } else {
-          body = `
-${subList[0] || `${chNum}.1 Comprehensive Fieldwork Conclusion`}
-My practical training at ${org} under ${sup} successfully fulfilled all academic objectives of ${uni}, giving me real insight into industry operations in Tanzania.
-
-${subList[1] || `${chNum}.2 Strategic Recommendations to Host Enterprise (${org})`}
-1. Student Toolkits: Provide incoming trainees with structured onboarding manuals and sandbox environments.
-2. Preventative Maintenance: Maintain regular servicing schedules for key equipment to minimize downtime.
-3. Institutional Partnerships: Strengthen long-term collaboration with ${uni} for internship pipelines.
-
-${subList[2] || `${chNum}.3 Actionable Recommendations to ${uni} Administration`}
-1. Practical Laboratory Hours: Expand practical laboratory training on industry tools.
-2. Industry Linkages: Build formal partnerships with host organizations like ${org}.
-3. Pre-Attachment Clinics: Conduct refresher workshops on tools and workplace safety before placement.
-`;
+          body = this.synthesizeChapter5Content({
+            org,
+            dept,
+            uni,
+            sup,
+            prog,
+            reportTitle,
+            discipline,
+            toolsClean,
+            subList
+          });
         }
 
         return `<!-- PAGE_BREAK -->\n# ${cleanTitle}\n${body.trim()}`;
@@ -2030,543 +2448,112 @@ ${subList[2] || `${chNum}.3 Actionable Recommendations to ${uni} Administration`
 
       chaptersContent = generatedChapters.join("\n\n");
     } else {
-      // Standard 5-chapter generator scaled strictly to targetPagesNum
-      if (targetPagesNum >= 22) {
-        // 25 Pages: Exactly 3 pages Ch 1, 6 pages Ch 2, 2 pages Ch 3, 2 pages Ch 4, 1 page Ch 5
+      // Standard 5-chapter generator using publication-grade synthesis
+      const ch1 = this.synthesizeChapter1Content({
+        org,
+        dept,
+        uni,
+        sup,
+        prog,
+        reportTitle,
+        discipline,
+        organogram,
+        staffCadreTable,
+        chapter1SafetySection
+      });
+      const ch2 = this.synthesizeChapter2Content({
+        org,
+        dept,
+        uni,
+        sup,
+        prog,
+        reportTitle,
+        discipline,
+        activitiesClean,
+        toolsClean,
+        flowchart,
+        comparisonTable
+      });
+      const ch3 = this.synthesizeChapter3Content({
+        org,
+        dept,
+        uni,
+        sup,
+        prog,
+        reportTitle,
+        discipline,
+        challengesClean,
+        table31Html
+      });
+      const ch4 = this.synthesizeChapter4Content({
+        org,
+        dept,
+        uni,
+        sup,
+        prog,
+        reportTitle,
+        discipline,
+        keyLearningsClean,
+        toolsClean,
+        chapter4Coursework
+      });
+      const ch5 = this.synthesizeChapter5Content({
+        org,
+        dept,
+        uni,
+        sup,
+        prog,
+        reportTitle,
+        discipline,
+        toolsClean
+      });
+
+      if (targetPagesNum < 13) {
+        // 10 Pages: references embedded in Chapter 5
         chaptersContent = `<!-- PAGE_BREAK -->
 # CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION
-
-1.1 Profile and Historical Background of Host Organization
-I completed my field practical training attachment at ${org}. The host enterprise is an established organization operating in Tanzania, playing a key role in providing technical solutions, infrastructure development, and institutional efficiency within the national and East African economic environment. Founded with a vision to enhance operational productivity through modern professional practices, ${org} delivers reliable, secure, and compliant services to commercial clients, public institutions, and community stakeholders.
-
-During my industrial placement, I was embedded within the active operational environment of ${org}. The enterprise maintains operational facilities equipped with modern engineering workstations, diagnostic testing apparatus, and collaborative project rooms. Working within this environment allowed me to observe firsthand how an established organization coordinates departmental handoffs, enforces quality assurance protocols, complies with statutory guidelines, and delivers mission-critical technical services to institutional clients in Tanzania.
-
-1.2 Vision, Mission and Core Strategic Objectives
-The strategic direction of ${org} is guided by clear institutional mandates designed to ensure operational excellence and competitive leadership in Tanzania and the wider East African Community (EAC).
-
-The official Vision of ${org} is:
-"To become the most trusted, innovative, and sustainable operational and technical solutions leader in Tanzania, accelerating economic modernization, industrial efficiency, and local capacity development."
-
-The official Mission of ${org} is:
-"To deliver robust, high-performance, and compliant technical services that resolve complex operational challenges for our clients, achieved through uncompromising engineering standards, continuous innovation, and human capital development."
-
-The core functions and operational duties of ${org} comprise:
-1. Providing reliable, high-availability technical services and system implementations conforming to national and international regulatory standards.
-2. Continuous infrastructure health monitoring, preventative maintenance, and quality auditing to guarantee high operational uptime across client integrations.
-3. Cultivating human capital through industry-academia partnerships, mentorship of technical trainees, and conducting practical training workshops in collaboration with Tanzanian higher learning institutions like ${uni}.
-4. Adhering strictly to national statutory policies, occupational health and safety benchmarks, and legal data privacy mandates.
-
-<!-- PAGE_BREAK -->
-1.3 Organizational Governance & Administrative Structure
-The administrative hierarchy of ${org} is structured to facilitate agile decision-making, strict accountability, and cross-functional synergy across technical, operational, and administrative units. The overall governance is led by the Board of Directors and the Managing Director, who formulate strategic institutional objectives and allocate resource budgets.
-
-Under executive leadership, departmental heads supervise specialized divisions, including technical operations, finance, administration, and quality compliance. The technical division houses core operational units where daily implementation and maintenance take place. Practical training trainees are formally integrated into specialized project squads under the mentorship of designated senior professionals and departmental leads.
-
-${organogram}
-
-1.4 Job Descriptions and Technical Cadre Roles
-Within the ${dept}, personnel are organized into distinct technical cadres according to their academic specializations and engineering competencies. The squad operates through distributed peer-review systems, scheduled operational sprints, and daily stand-up synchronization meetings to ensure uninterrupted production workflows.
-
-${staffCadreTable}
-
-<!-- PAGE_BREAK -->
-${chapter1SafetySection}
-
-1.6 Strategic Mandate and Role of the Department in the Organization
-The ${dept} serves as the vital technical backbone and operational engine of ${org}. Its overarching responsibility is to design, deploy, and maintain the organization's mission-critical services, technical workflows, and client-facing deliverables. By enforcing modular workflows, rigorous quality testing, and robust error logging, the department ensures that all operational activities meet stringent Service Level Agreements (SLAs) with zero unplanned disruptions.
-
-Furthermore, the department acts as the primary incubator for technical research and process optimization within the enterprise. It evaluates emerging industry methodologies, automated workflows, and quality management frameworks to identify opportunities for reducing operational latency, lowering overhead costs, and enhancing service reliability. During my attachment, the department served as an exemplary learning environment that bridged the gap between abstract academic theories taught at ${uni} and the rigorous demands of industrial practice in Tanzania.
+${ch1.trim()}
 
 <!-- PAGE_BREAK -->
 # CHAPTER 2: PRACTICAL ACTIVITIES & MAIN TECHNICAL ASSIGNMENT
-
-2.1 Problem Identification and Industrial Practical Context
-A core pedagogical objective of the industrial practical training curriculum at ${uni} is to immerse undergraduate students in authentic industrial environments, enabling them to apply theoretical knowledge to tangible engineering and operational problems. Upon reporting to the ${dept} at ${org}, I participated in comprehensive technical orientations and was assigned to the core operations squad under the direct supervision of ${sup}.
-
-The industrial challenge and practical duties addressed during my placement centered upon:
-${activitiesClean}
-
-In traditional operations within the sector in Tanzania, institutions frequently face operational bottlenecks, including process latency, manual data handling errors, and system reliability challenges. To address these limitations, ${org} initiated a targeted implementation focusing on ${reportTitle}. My assignment within the ${dept} was to actively participate in executing these activities, configuring necessary tools, ensuring compliance with institutional standards, and maintaining systematic documentation.
-
-2.2 Detailed Scope of Assigned Technical Duties
-To successfully execute this technical assignment, my duties were organized into discrete operational deliverables under the continuous supervision of ${sup}. My daily practical tasks included:
-1. Reviewing relevant technical standards, operating procedures, and regulatory requirements applicable to ${reportTitle}.
-2. Configuring developer and testing toolchains, ensuring all necessary software environments, calibrated instruments, and diagnostic utilities were verified.
-3. Implementing core operational modules and practical deliverables in strict accordance with departmental specifications.
-4. Structuring verification routines and monitoring workflows to maintain high operational reliability and data integrity.
-5. Writing automated exception-handling routines and diagnostic logs to identify and resolve operational anomalies promptly.
-
-<!-- PAGE_BREAK -->
-2.3 Justification of Methodological and Technical Approaches
-The methodology adopted during my attachment was selected based on three strict professional criteria:
-1. Operational Reliability and Safety: Adopting standardized procedures ensures minimal operational disruption, protects personnel, and conforms to national regulatory standards in Tanzania.
-2. Workflow Efficiency and Interoperability: Utilizing modern, established tools (${toolsClean}) optimizes workflow throughput and enables seamless collaboration across multidisciplinary squads.
-3. Deterministic Quality Verification: The operational pipeline was engineered with multi-tiered status checks, verifying task outputs against benchmarks before sign-off.
-
-2.4 Operational Process Workflow & Execution Stages
-The practical engineering project was executed through five structured phases: (1) Problem Formulation & Requirements Definition; (2) Environment Setup & Tool Calibration; (3) Active Implementation & Execution; (4) Rigorous QA Testing & Performance Simulation; and (5) Supervisor Review & Production Handover.
-
-${flowchart}
-
-<!-- PAGE_BREAK -->
-2.5 Software Tools, Stacks, Equipment and Technologies Handled
-The execution of my practical duties required daily interaction with modern tools, developer utilities, and testing environments:
-${toolsClean}
-
-Each tool was selected for its proven industrial track record and alignment with sector best practices:
-1. Primary Execution & Drafting Environment: Provided a centralized workspace for authoring code, analyzing data, and configuring operational parameters with integrated linting and syntax validation.
-2. Version Control & Collaborative Repositories: Enabled distributed collaboration, code review tracking, and branch merging without risking production branches.
-3. Diagnostic & Telemetry Utilities: Provided real-time visibility into process variables, response latencies, and error codes, allowing immediate root-cause identification.
-4. Testing & Simulation Environments: Facilitated safe, isolated pre-deployment validation under simulated high-load conditions without affecting live client operations. Every dependency was verified for compliance and data security.
-
-<!-- PAGE_BREAK -->
-2.6 Comparative Evaluation of Alternative Technical Solutions
-To identify the most viable operational strategy for ${reportTitle}, our technical squad conducted a structured comparative evaluation of three alternative approaches: Manual Legacy Workflows, Custom In-House Scripts, and Standardized Modern Architectures.
-
-${comparisonTable}
-
-<!-- PAGE_BREAK -->
-2.7 Step-by-Step Task Execution and Practical Implementation
-The practical implementation followed a disciplined engineering workflow:
-1. Morning Standup Briefing: Commenced each working day with supervisor ${sup} and engineering peers to review sprint backlogs, discuss blocker tickets, and assign specific component tickets.
-2. Environment Bootstrap & Dependency Verification: Validated local runtime environments, ensuring environment variables, project parameters, and configuration files were correctly loaded.
-3. Component Development & Execution: Developed interactive components and executed assigned operational tasks:
-${activitiesSteps}
-4. Comprehensive Event Logging: Logged all operations, response times, and output receipts into daily record books to ensure end-to-end traceability.
-5. Daily Technical Handover: Committed clean work and demonstrated completed deliverables to ${sup} for architectural sign-off.
-
-<!-- PAGE_BREAK -->
-2.8 Technical Challenges, Anomaly Resolution & Defensive Quality Assurance
-During active implementation, several practical obstacles were diagnosed and resolved:
-${challengesClean}
-
-To harden the system against operational failure, our team implemented defensive quality assurance measures:
-1. Input Sanitization & Validation: Enforced strict validation across all external data feeds to prevent malformed payloads from disrupting backend services.
-2. Failover Caching: Implemented local session caching to ensure uninterrupted operations during temporary network drops.
-3. Automated Error Logging: Integrated structured error logging to capture timestamped stack traces for rapid anomaly resolution.
-
-2.9 Summary of Practical Engineering Deliverables
-The practical assignments completed in the ${dept} demonstrated that modular design, strict adherence to protocol standards, and robust error handling are vital for enterprise-grade operations. At the conclusion of the training period, the assigned project deliverables were successfully validated, achieving all performance benchmarks and receiving formal endorsement from ${sup}.
+${ch2.trim()}
 
 <!-- PAGE_BREAK -->
 # CHAPTER 3: CHALLENGES ENCOUNTERED & PRACTICAL PROBLEM SOLVING
-
-3.1 Practical Challenges Encountered in Fieldwork Operations
-Transitioning from simulated academic exercises at ${uni} to an active commercial enterprise exposed me to the unpredictability of production environments. In an industrial setting, systems interact with external network gateways, third-party services, and heterogeneous hardware operating across varying local infrastructure conditions.
-
-During my industrial practical training attachment at ${org}, I encountered several complex technical challenges:
-${challengesClean}
-
-These practical obstacles underscored the reality that theoretical designs must always be accompanied by defensive engineering, graceful degradation, and comprehensive fault-tolerant error boundaries.
-
-3.2 Equipment, Network and Infrastructure Bottlenecks
-In addition to application-level challenges, our engineering tasks were occasionally constrained by external infrastructure dependencies:
-1. Service Rate Limiting: External service providers and public gateways frequently throttled connection requests during peak hours.
-2. Network Latency Fluctuations: Intermittent ISP connectivity in Dar es Salaam introduced socket connection drops between development workstations and cloud servers.
-3. Hardware Calibration Drift: Sensitive instruments required periodic recalibration to maintain measurement precision under continuous operational loads.
-
-To mitigate these resource constraints, the engineering squad adopted resilient development practices:
-1. Multi-Provider Failover: Configured secondary and tertiary failover providers within configuration files, allowing automatic failover when a primary service throttled incoming requests.
-2. Local Response Caching: Implemented client-side response caching for non-mutating queries, reducing redundant external requests by over 35%.
-3. Collaborative Task Prioritization: When cloud-dependent services suffered outages, development focus immediately shifted to offline component styling, unit test authoring, and documentation updates.
-
-<!-- PAGE_BREAK -->
-3.3 Systematic Root-Cause Diagnostic Methodology
-Whenever technical anomalies emerged, I followed a structured, scientific troubleshooting methodology instilled by my supervisor ${sup}:
-1. Root-Cause Telemetry Inspection: Examined developer consoles, system logs, and network payload headers rather than attempting superficial guesswork fixes.
-2. Isolated Sandbox Reproduction: Isolated the failing component within a minimal test harness to determine whether the issue stemmed from local code, network relays, or external services.
-3. Peer Consultation and Knowledge Sharing: Discussed complex anomalies with senior engineering staff, leveraging their institutional experience to implement robust architectural mitigations.
-
-${table31Html}
-
-3.4 Operational Gaps and Institutional Lessons Learned
-My experience highlighted several long-term technical enhancements that would benefit the enterprise:
-1. Automated Pre-Deployment Testing: Introducing automated end-to-end testing suites would catch device-specific defects before staging deployments.
-2. Dedicated Staging Caching Nodes: Establishing internal staging caching nodes would insulate developers from external rate limiting.
-3. Digital Verification Templates: Transitioning from manual log sheets to structured digital verification templates dramatically reduces logging errors and expedites supervisor sign-off. These insights were documented and submitted as part of my final departmental recommendations.
+${ch3.trim()}
 
 <!-- PAGE_BREAK -->
 # CHAPTER 4: SKILLS ACQUIRED & CONNECTION TO UNIVERSITY COURSES
-
-4.1 Practical Technical Competencies Gained
-The industrial practical training attachment at ${org} provided an invaluable platform for acquiring hands-on technical proficiencies that extend far beyond textbook theory. Through daily immersion in commercial engineering tasks, I developed practical masteries in:
-${keyLearningsClean}
-
-Working with modern tools (${toolsClean}) and production codebases built my professional confidence in navigating enterprise-scale environments, debugging runtime exceptions, and adhering to strict quality assurance benchmarks.
-
-4.2 Professional Soft Skills, Team Dynamics and Work Ethics
-Beyond technical skills, working in a commercial enterprise provided intensive exposure to workplace culture, professional communication, and team accountability:
-1. Clear Technical Communication: Learned to articulate complex technical issues, architectural trade-offs, and daily progress during standup meetings and in written reports.
-2. Agile Team Collaboration: Collaborated productively with colleagues across different technical cadres, developing deep appreciation for how diverse specializations unite to deliver complete solutions.
-3. Time Management and Self-Discipline: Managed multiple task deadlines, punctually attended morning shifts, and consistently met sprint deliverables through disciplined daily task tracking.
-
-<!-- PAGE_BREAK -->
-${chapter4Coursework}
-
-4.4 Professional Ethics, Confidentiality and Societal Awareness in Tanzania
-Throughout my placement at ${org}, I adhered rigorously to professional codes of conduct, data privacy mandates, and intellectual property protections. Handling proprietary repositories and operational data required continuous vigilance regarding credential confidentiality, role-based access, and the prevention of unauthorized disclosures in accordance with the Tanzania Personal Data Protection Act (PDPA) No. 11 of 2022.
-
-Furthermore, the attachment broadened my perspective on the societal and economic impact of technical modernization in Tanzania. By designing robust, scalable, and accessible technical solutions, organizations can lower transaction costs, foster financial and digital inclusion, and stimulate economic innovation across the United Republic of Tanzania.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 5: CONCLUSIONS & PRACTICAL RECOMMENDATIONS
-
-5.1 Comprehensive Practical Training Conclusion
-My industrial practical training attachment at ${org} under the mentorship of ${sup} was a profoundly rewarding and transformative experience. It successfully fulfilled all academic objectives established by ${uni}, providing an authentic bridge between theoretical classroom instruction and the demanding realities of commercial engineering practice.
-
-Through direct participation in executing practical duties related to ${reportTitle}, I gained practical proficiencies in modern toolchains, fault-tolerant error handling, and collaborative engineering workflows. The attachment reinforced my professional aspiration to contribute to Tanzania's expanding technical and industrial economy as a competent, ethical, and innovative professional.
-
-5.2 Strategic Recommendations to Host Organization (${org})
-Based on my observations during the attachment, I submit the following constructive recommendations to the management of ${org}:
-1. Trainee Orientation Toolkits: Prepare a standardized onboarding package containing pre-configured sandbox environments, mock datasets, and architecture documentation to reduce onboarding friction for future interns.
-2. Local Development Caching Infrastructure: Deploy dedicated local caching proxies or internal staging servers to insulate engineering squads from public service rate limits and network outages.
-3. Expanded University Partnerships: Formalize long-term internship pipelines with Tanzanian universities, providing structured final year project (FYP) sponsorships and mentorship opportunities for promising undergraduates.
-
-5.3 Actionable Recommendations to ${uni} Administration & Academic Board
-To continuously improve the quality and relevance of the undergraduate curriculum, I recommend the following enhancements to the academic leadership of ${uni}:
-1. Expanding Practical Tool Modules: Integrate hands-on training on modern industrial tools and containerized development workflows into existing coursework before field attachment.
-2. Hands-On Laboratory Emulation: Upgrade university computing and engineering laboratories with real-world testing sandboxes, ensuring students practice industry-standard workflows prior to field attachment.
-3. Dedicated Pre-Attachment Technical Clinics: Organize specialized technical refresher workshops focusing on version control, diagnostic tools, and workplace professional ethics before students depart for field placement.
-
-5.4 Practical Guidance and Advice for Future Attachment Students
-For upcoming students undertaking industrial practical training, I offer the following practical advice:
-1. Adopt a Proactive Learning Mindset: Do not wait for assigned tasks; actively study the host organization's operating environment, observe senior staff, ask clarifying questions, and volunteer to tackle challenging bug fixes.
-2. Maintain Rigorous Daily Logbook Documentation: Diligently record daily tasks, tools handled, challenges encountered, and solutions applied every evening to ensure final report preparation is structured and authentic.
-3. Prioritize Professional Ethics & Safety: Always respect institutional confidentiality policies, never bypass safety or data security protocols, and adhere strictly to professional engineering standards.`;
-      } else if (targetPagesNum >= 18) {
-        // 20 Pages: Exactly 2 pages Ch 1, 4 pages Ch 2, 2 pages Ch 3, 2 pages Ch 4, 1 page Ch 5
-        chaptersContent = `<!-- PAGE_BREAK -->
-# CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION
-
-1.1 Profile and Background of Host Organization
-I completed my field practical training attachment at ${org}. The host organization operates in Tanzania, providing reliable technical services and solutions within its sector. During my attachment within the ${dept}, I was embedded in active operational workflows under the supervision of ${sup}.
-
-The facilities of ${org} are equipped with functional engineering workstations and quality testing environments. Working in this setting allowed me to observe firsthand how an established enterprise coordinates departmental workflows, enforces quality standards, and delivers technical services to clients.
-
-1.2 Vision, Mission and Core Functions
-The official Vision of ${org} is: "To become the leading provider of quality technical solutions in Tanzania, driving operational excellence and capacity building."
-The official Mission of ${org} is: "To deliver reliable, secure, and compliant technical services through professional engineering standards and continuous innovation."
-
-Key functions of ${org} include:
-1. Providing reliable technical services according to national regulatory standards.
-2. Routine inspection, monitoring, and maintenance of departmental systems and infrastructure.
-3. Training student trainees in collaboration with higher learning institutions such as ${uni}.
-4. Adhering to national occupational safety, environmental guidelines, and fair workplace regulations.
-
-1.3 Organizational Governance & Administrative Structure
-The management structure of ${org} is organized to ensure smooth decision-making and departmental coordination.
-
-${organogram}
-
-<!-- PAGE_BREAK -->
-1.4 Job Descriptions and Technical Cadre Roles
-Within the ${dept}, technical staff are organized into specialized cadres responsible for daily execution, maintenance, and quality verification.
-
-${staffCadreTable}
-
-${chapter1SafetySection}
-
-1.6 Departmental Role in Enterprise Operations
-The ${dept} serves as the primary technical engine of ${org}, maintaining operational infrastructure and ensuring all technical deliverables meet required Service Level Agreements (SLAs).
-
-<!-- PAGE_BREAK -->
-# CHAPTER 2: PRACTICAL ACTIVITIES & MAIN TECHNICAL ASSIGNMENT
-
-2.1 Problem Identification and Industrial Practical Context
-The main objective of practical training at ${uni} is to connect theoretical coursework with practical industry work. When I reported to the ${dept} at ${org}, I was assigned to work on tasks related to ${reportTitle}.
-
-Core operational tasks assigned:
-${activitiesClean}
-
-To execute these duties properly, I worked alongside senior personnel, followed standard operating procedures, and learned how to troubleshoot practical operational bottlenecks systematically.
-
-2.2 Detailed Scope of Assigned Technical Duties
-My practical duties were organized into discrete engineering tasks under the supervision of ${sup}:
-1. Reviewing technical specifications and operating procedures applicable to ${reportTitle}.
-2. Setting up and calibrating required instruments and software tools (${toolsClean}).
-3. Carrying out daily operational activities:
-${activitiesSteps}
-4. Conducting diagnostic checks and logging operational observations in the daily logbook.
-5. Reviewing task outcomes with ${sup} for technical verification.
-
-<!-- PAGE_BREAK -->
-2.3 Operational Process Workflow & Execution Stages
-The practical work followed five distinct phases: Problem Formulation, Tool Setup, Practical Execution, Quality Testing, and Handover.
-
-${flowchart}
-
-2.4 Tools, Equipment and Technologies Handled
-The execution of my practical duties required daily interaction with modern tools and equipment:
-${toolsClean}
-
-Each tool was calibrated and checked before use conforming to departmental operating guidelines.
-
-<!-- PAGE_BREAK -->
-2.5 Comparative Evaluation of Alternative Technical Solutions
-To determine the best operational approach for ${reportTitle}, our squad evaluated alternative methods across reliability, security, maintainability, and resource efficiency:
-
-${comparisonTable}
-
-2.6 Step-by-Step Task Execution
-1. Morning Briefing: Reviewed daily tasks and safety precautions with supervisor ${sup}.
-2. Environment Setup: Prepared and inspected required tools and workstations before starting work.
-3. Practical Execution: Implemented assigned operational tasks following standard procedures.
-4. Data Logging: Recorded task metrics, measurements, and anomalies in the daily record sheet.
-5. Technical Handover: Demonstrated completed deliverables to ${sup} for formal review and sign-off.
-
-<!-- PAGE_BREAK -->
-2.7 Technical Challenges, Anomaly Resolution & Quality Assurance
-During practical implementation, several obstacles were encountered and resolved:
-${challengesClean}
-
-Defensive quality assurance measures were implemented, including input data validation, local session caching, and structured exception handling to ensure uninterrupted operations.
-
-2.8 Summary of Practical Deliverables
-At the conclusion of the training period, all assigned operational deliverables for ${reportTitle} were completed, tested, and validated under the supervision of ${sup}.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 3: CHALLENGES ENCOUNTERED & PRACTICAL PROBLEM SOLVING
-
-3.1 Practical Challenges Encountered in Industrial Operations
-Working in an active commercial workplace involves real-world constraints that differ from theoretical classroom assumptions:
-${challengesClean}
-
-3.2 Resource, Network and Equipment Bottlenecks
-Our practical duties were occasionally constrained by external bottlenecks:
-1. Service Rate Limits: External service endpoints throttled requests during peak operational hours.
-2. ISP Latency: Intermittent network drops interrupted communication with remote servers.
-3. Equipment Wear: Sensitive diagnostic instruments experienced minor calibration drifts under continuous load.
-
-To mitigate these constraints, our team configured redundant failover providers, implemented local client response caching, and conducted routine pre-shift instrument recalibration.
-
-<!-- PAGE_BREAK -->
-3.3 Systematic Root-Cause Diagnostic Methodology
-When anomalies occurred, I applied a systematic troubleshooting approach:
-1. Root-Cause Inspection: Examined system logs and diagnostic telemetry to identify the exact point of failure.
-2. Isolated Sandbox Testing: Re-tested the issue in an isolated environment to verify root causes.
-3. Senior Staff Consultation: Discussed complex technical issues with ${sup} to implement robust solutions.
-
-${table31Html}
-
-3.4 Operational Gaps and Institutional Lessons Learned
-To prevent recurring anomalies, preventative maintenance schedules, updated checklists, and standardized digital documentation were established.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 4: SKILLS ACQUIRED & CONNECTION TO UNIVERSITY COURSES
-
-4.1 Practical Technical Competencies Gained
-The field attachment gave me valuable hands-on experience:
-${keyLearningsClean}
-
-Using practical tools (${toolsClean}) helped me build professional confidence in handling standard industry tools and real workplace assignments.
-
-4.2 Professional Soft Skills and Workplace Habits
-1. Clear Technical Communication: Learned how to report progress, ask questions clearly, and document technical issues.
-2. Teamwork and Cooperation: Worked productively alongside staff across different technical cadres.
-3. Time Management: Arrived on time for shifts, met daily deadlines, and took responsibility for assigned tasks.
-
-<!-- PAGE_BREAK -->
-${chapter4Coursework}
-
-4.4 Professional Ethics and Data Confidentiality
-Throughout my attachment, I strictly adhered to workplace ethics, confidentiality agreements, and personal data protection regulations conforming to the Tanzania Personal Data Protection Act (PDPA) No. 11 of 2022.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 5: CONCLUSIONS & PRACTICAL RECOMMENDATIONS
-
-5.1 Comprehensive Practical Training Conclusion
-My field practical training attachment at ${org} under ${sup} was a successful and transformative experience. It fulfilled all academic objectives established by ${uni}, providing an authentic bridge between classroom theory and industry practice.
-
-5.2 Strategic Recommendations to Host Organization (${org})
-1. Trainee Orientation Toolkits: Provide future interns with pre-configured developer toolkits and sandbox documentation.
-2. Infrastructure Maintenance: Maintain regular preventative servicing for key operational equipment to minimize downtime.
-3. University Collaboration: Expand internship opportunities for Tanzanian university undergraduates.
-
-5.3 Actionable Recommendations to ${uni} Administration
-1. More Practical Sessions: Increase hands-on laboratory workshops for industrial tools.
-2. Industry Partnerships: Strengthen formal partnerships with enterprises like ${org} to secure relevant student placements.
-3. Pre-Attachment Clinics: Conduct refresher workshops on modern tools and workplace safety before placement.
-
-5.4 Practical Advice for Future Students
-1. Adopt a Proactive Mindset: Actively study system architectures and volunteer for challenging tasks.
-2. Keep Daily Logbooks: Record daily activities, tools used, and solutions applied every evening.
-3. Respect Professional Ethics: Follow workplace confidentiality, data security, and safety protocols at all times.`;
-      } else if (targetPagesNum >= 13) {
-        // 15 Pages: Exactly 2 pages Ch 1, 3 pages Ch 2, 1 page Ch 3, 1 page Ch 4, 1 page Ch 5
-        chaptersContent = `<!-- PAGE_BREAK -->
-# CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION
-
-1.1 Profile and Historical Background of Host Organization
-I completed my field practical training attachment at ${org}. The host organization is an established enterprise operating in Tanzania, providing reliable technical services and solutions. During my attachment within the ${dept}, I was embedded in active operational workflows under the supervision of ${sup}.
-
-1.2 Vision, Mission and Core Functions
-The Vision of ${org} is to be a leading provider of quality technical solutions in Tanzania. Its Mission is to deliver reliable and compliant technical services through professional standards. Key functions include providing technical services, maintaining infrastructure, and collaborating with higher learning institutions like ${uni}.
-
-1.3 Organizational Governance & Administrative Structure
-The administrative hierarchy of ${org} ensures clear departmental coordination across technical, finance, and operational divisions.
-
-${organogram}
-
-<!-- PAGE_BREAK -->
-1.4 Job Descriptions and Technical Cadre Roles
-Within the ${dept}, staff are organized into specialized cadres handling daily operational tasks.
-
-${staffCadreTable}
-
-${chapter1SafetySection}
-
-1.6 Departmental Mandate
-The ${dept} serves as the primary technical engine of ${org}, ensuring continuous service reliability and quality compliance.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 2: PRACTICAL ACTIVITIES & MAIN TECHNICAL ASSIGNMENT
-
-2.1 Problem Identification and Assigned Tasks
-The main objective of practical training at ${uni} is to connect classroom coursework with real industrial work. At ${org}, I was assigned to work on duties related to ${reportTitle}:
-${activitiesClean}
-
-2.2 Operational Process Workflow
-The practical work was carried out in five distinct phases: Problem Formulation, Setup, Implementation, Testing, and Handover.
-
-${flowchart}
-
-<!-- PAGE_BREAK -->
-2.3 Tools and Technologies Handled
-Tools and equipment utilized during the training period:
-${toolsClean}
-
-Each tool was inspected and calibrated prior to use conforming to standard operating procedures.
-
-2.4 Comparative Evaluation of Technical Solutions
-Alternative operational approaches were evaluated across reliability, security, maintainability, and resource efficiency:
-
-${comparisonTable}
-
-<!-- PAGE_BREAK -->
-2.5 Step-by-Step Task Execution and Handover
-1. Morning Briefing: Reviewed daily tasks and safety precautions with supervisor ${sup}.
-2. Preparation: Configured tools and workstations before starting work.
-3. Execution: Implemented assigned operational tasks:
-${activitiesSteps}
-4. Observations: Logged measurements and outcomes in the daily record book.
-5. Handover: Demonstrated completed work to ${sup} for verification and sign-off.
-
-2.6 Summary of Practical Deliverables
-At the conclusion of the training period, assigned deliverables for ${reportTitle} were successfully executed and validated.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 3: CHALLENGES ENCOUNTERED & PRACTICAL PROBLEM SOLVING
-
-3.1 Practical Challenges and Bottlenecks
-During my training at ${org}, I encountered several operational challenges:
-${challengesClean}
-
-3.2 Systematic Root-Cause Problem Solving
-When anomalies occurred, I inspected diagnostic logs, tested solutions in an isolated environment, and consulted supervisor ${sup}.
-
-${table31Html}
-
-Preventative maintenance schedules and standardized digital checklists were established to minimize recurring issues.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 4: SKILLS ACQUIRED & CONNECTION TO UNIVERSITY COURSES
-
-4.1 Technical Competencies and Soft Skills Gained
-The field attachment provided intensive hands-on experience:
-${keyLearningsClean}
-
-In addition to technical skills, I developed professional workplace habits including clear technical communication, teamwork, time management, and adherence to professional ethics conforming to the Tanzania Personal Data Protection Act (PDPA) No. 11 of 2022.
-
-${chapter4Coursework}
-
-<!-- PAGE_BREAK -->
-# CHAPTER 5: CONCLUSIONS & PRACTICAL RECOMMENDATIONS
-
-5.1 Comprehensive Practical Training Conclusion
-My practical training attachment at ${org} under ${sup} successfully fulfilled all academic requirements of ${uni}, giving me real insight into industry operations in Tanzania.
-
-5.2 Strategic Recommendations to Host Organization (${org})
-1. Trainee Toolkits: Prepare standardized developer toolkits and sandbox documentation for future interns.
-2. Equipment Maintenance: Maintain regular preventative servicing for key operational equipment.
-3. University Linkages: Expand attachment opportunities for undergraduate students.
-
-5.3 Actionable Recommendations to ${uni} Administration
-1. More Practical Labs: Expand practical laboratory training on industry tools.
-2. Industry Partnerships: Strengthen formal partnerships with host organizations like ${org}.
-3. Pre-Attachment Clinics: Conduct refresher workshops on modern tools and workplace safety before placement.`;
-      } else {
-        // 10 Pages: Exactly 1 page Ch 1, 2 pages Ch 2, 1 page Ch 3, 1 page Ch 4, 1 page Ch 5 & References
-        chaptersContent = `<!-- PAGE_BREAK -->
-# CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION
-
-1.1 Profile and Background of Host Organization
-I completed my field practical training attachment at ${org} in the ${dept} under the supervision of ${sup}. The host enterprise is an established organization in Tanzania providing technical services. Its Vision is to be a leader in quality technical solutions, and its Mission is to deliver reliable, compliant services.
-
-1.2 Governance Structure and Staff Cadres
-The organization is headed by executive leadership, supervising technical operations, finance, and administration.
-
-${organogram}
-
-${staffCadreTable}
-
-${chapter1SafetySection}
-
-<!-- PAGE_BREAK -->
-# CHAPTER 2: PRACTICAL ACTIVITIES & MAIN TECHNICAL ASSIGNMENT
-
-2.1 Practical Problem Context and Assigned Duties
-Practical training at ${uni} connects theoretical coursework with authentic industry work. At ${org}, I participated in operational duties related to ${reportTitle}:
-${activitiesClean}
-
-2.2 Operational Workflow
-The practical work followed five structured stages: Setup, Diagnostics, Execution, Quality Testing, and Handover.
-
-${flowchart}
-
-<!-- PAGE_BREAK -->
-2.3 Tools Handled and Technical Evaluation
-Tools and equipment used: ${toolsClean}
-
-${comparisonTable}
-
-2.4 Step-by-Step Task Execution
-1. Morning Briefing: Reviewed daily goals with supervisor ${sup}.
-2. Practical Execution:
-${activitiesSteps}
-3. Technical Handover: Demonstrated completed work to ${sup} for formal sign-off.
-
-<!-- PAGE_BREAK -->
-# CHAPTER 3: CHALLENGES ENCOUNTERED & PRACTICAL PROBLEM SOLVING
-
-3.1 Identification of Practical Challenges
-During my placement at ${org}, I experienced operational challenges:
-${challengesClean}
-
-3.2 Root-Cause Problem Solving
-Anomalies were diagnosed by inspecting system logs and consulting supervisor ${sup}.
-
-${table31Html}
-
-<!-- PAGE_BREAK -->
-# CHAPTER 4: SKILLS ACQUIRED & CONNECTION TO UNIVERSITY COURSES
-
-4.1 Technical and Professional Skills Gained
-Key competencies gained: ${keyLearningsClean}
-
-${chapter4Coursework}
-
-Professional ethics and confidentiality were strictly observed in compliance with the Tanzania Personal Data Protection Act (PDPA) No. 11 of 2022.
+${ch4.trim()}
 
 <!-- PAGE_BREAK -->
 # CHAPTER 5: CONCLUSIONS, RECOMMENDATIONS & REFERENCES
+${ch5.trim()}
 
-5.1 Conclusion and Recommendations
-My practical training at ${org} under ${sup} successfully fulfilled all academic objectives of ${uni}.
-- To ${org}: Provide standardized onboarding sandboxes and maintain routine equipment servicing.
-- To ${uni}: Increase practical laboratory hours and conduct pre-attachment technical clinics.
-
+<!-- PAGE_BREAK -->
 ## References
 ${referencesSection}`;
+      } else {
+        // 15, 20, 25 Pages: full separate chapters
+        chaptersContent = `<!-- PAGE_BREAK -->
+# CHAPTER 1: INTRODUCTION TO THE HOST ORGANIZATION
+${ch1.trim()}
+
+<!-- PAGE_BREAK -->
+# CHAPTER 2: PRACTICAL ACTIVITIES & MAIN TECHNICAL ASSIGNMENT
+${ch2.trim()}
+
+<!-- PAGE_BREAK -->
+# CHAPTER 3: CHALLENGES ENCOUNTERED & PRACTICAL PROBLEM SOLVING
+${ch3.trim()}
+
+<!-- PAGE_BREAK -->
+# CHAPTER 4: SKILLS ACQUIRED & CONNECTION TO UNIVERSITY COURSES
+${ch4.trim()}
+
+<!-- PAGE_BREAK -->
+# CHAPTER 5: CONCLUSIONS & PRACTICAL RECOMMENDATIONS
+${ch5.trim()}`;
       }
     }
 

@@ -33,13 +33,16 @@ import {
   CheckSquare,
   Layers,
   Code,
-  Eye
+  Eye,
+  FileEdit,
+  Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TOOLS } from "@/lib/tools-config";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import AcademicAlerts from "@/lib/sweetalert";
 import { getUniversitiesCatalog } from "@/data/tanzania-academic-catalog";
+import { DocumentDownloadSelectorModal, ExportFormatType } from "@/components/export/DocumentDownloadSelectorModal";
 
 export default function ToolPage() {
   const params = useParams();
@@ -115,6 +118,7 @@ export default function ToolPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"pdf" | "doc">("pdf");
+  const [showDownloadSelector, setShowDownloadSelector] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [feeTzs, setFeeTzs] = useState(5000);
 
@@ -337,16 +341,22 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleExport = async (format: "pdf" = "pdf") => {
+  const handleExport = async (format: "pdf" | "doc" = "pdf") => {
     if (!output) return;
-    setSelectedFormat("pdf");
+    setSelectedFormat(format);
+
+    const exportOptions = {
+      title: `${tool.title} Output`,
+      institution: "Tanzania Higher Education Research Repository",
+      content: output
+    };
 
     if (isUnlocked) {
-      DocxCompilerEngine.openPdfPrintWindow({
-        title: `${tool.title} Output`,
-        institution: "Tanzania Higher Education Research Repository",
-        content: output
-      });
+      if (format === "doc") {
+        DocxCompilerEngine.downloadDocxFile(exportOptions);
+      } else {
+        DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+      }
       return;
     }
 
@@ -356,12 +366,8 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          format: "pdf",
-          options: {
-            title: `${tool.title} Output`,
-            institution: "Tanzania Higher Education Research Repository",
-            content: output
-          }
+          format: format === "doc" ? "doc" : "pdf",
+          options: exportOptions
         })
       });
 
@@ -370,11 +376,11 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
         setShowPaymentModal(true);
       } else if (data.success) {
         setIsUnlocked(true);
-        DocxCompilerEngine.openPdfPrintWindow({
-          title: `${tool.title} Output`,
-          institution: "Tanzania Higher Education Research Repository",
-          content: output
-        });
+        if (format === "doc") {
+          DocxCompilerEngine.downloadDocxFile(exportOptions);
+        } else {
+          DocxCompilerEngine.openPdfPrintWindow(exportOptions);
+        }
       }
     } catch (e) {
       setShowPaymentModal(true);
@@ -440,12 +446,20 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
         setIsUnlocked(true);
         setShowPaymentModal(false);
 
-        // Instantly execute PDF print/download
-        DocxCompilerEngine.openPdfPrintWindow({
-          title: `${tool.title} Output`,
-          institution: "Tanzania Higher Education Research Repository",
-          content: output
-        });
+        // Instantly execute selected print/download
+        if (selectedFormat === "doc") {
+          DocxCompilerEngine.downloadDocxFile({
+            title: `${tool.title} Output`,
+            institution: "Tanzania Higher Education Research Repository",
+            content: output
+          });
+        } else {
+          DocxCompilerEngine.openPdfPrintWindow({
+            title: `${tool.title} Output`,
+            institution: "Tanzania Higher Education Research Repository",
+            content: output
+          });
+        }
       } else {
         AcademicAlerts.error("Payment Verification Failed", data.error || "Please try again.");
       }
@@ -1357,13 +1371,35 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
               </Button>
               <Button 
                 size="sm" 
+                variant="outline"
+                className="h-8 gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 transition"
+                disabled={!output} 
+                onClick={() => setShowDownloadSelector(true)}
+                title="Select download format (Word or PDF)"
+              >
+                <Download className="size-3.5 text-teal-600" />
+                <span>Download Options</span>
+                <ChevronDown className="size-3 opacity-70" />
+              </Button>
+              <Button 
+                size="sm" 
+                className="h-8 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition"
+                disabled={!output} 
+                onClick={() => handleExport("doc")}
+                title={!isUnlocked ? "Payment required to download Word document" : "Download editable Microsoft Word document (.docx)"}
+              >
+                {!isUnlocked ? <Lock className="size-3.5" /> : <FileEdit className="size-3.5" />}
+                {isUnlocked ? "Word (.docx)" : "Unlock Word"}
+              </Button>
+              <Button 
+                size="sm" 
                 className="h-8 gap-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm transition"
                 disabled={!output} 
                 onClick={() => handleExport("pdf")}
                 title={!isUnlocked ? "Payment required to download PDF" : "Download PDF Document"}
               >
-                {!isUnlocked ? <Lock className="size-3.5" /> : <FileText className="size-3.5" />}
-                {isUnlocked ? "Download PDF" : "Unlock & Download PDF"}
+                {!isUnlocked ? <Lock className="size-3.5" /> : <Printer className="size-3.5" />}
+                {isUnlocked ? "PDF" : "Unlock PDF"}
               </Button>
             </div>
           </div>
@@ -1590,6 +1626,21 @@ Please architect a comprehensive 4-phase week-by-week dissertation roadmap with 
           </div>
         </div>
       </div>
+
+      {/* DOCUMENT DOWNLOAD SELECTOR MODAL */}
+      <DocumentDownloadSelectorModal
+        isOpen={showDownloadSelector}
+        onClose={() => setShowDownloadSelector(false)}
+        documentTitle={`${tool.title} Output`}
+        isUnlocked={isUnlocked}
+        feeTzs={feeTzs}
+        onSelectFormat={(fmt) => handleExport(fmt === "doc" ? "doc" : "pdf")}
+        onUnlockRequired={(fmt) => {
+          setSelectedFormat(fmt === "doc" ? "doc" : "pdf");
+          setShowDownloadSelector(false);
+          setShowPaymentModal(true);
+        }}
+      />
     </div>
   );
 }

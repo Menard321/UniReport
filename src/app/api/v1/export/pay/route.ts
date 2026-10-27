@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       data: {
         userId: session.userId as string,
         title: "Document Unlocked Successfully",
-        message: `Your payment of TZS 5,000 via ${paymentMethod} (${reference}) was confirmed. Full PDF export and text copying are now available.`,
+        message: `Your payment of TZS 5,000 via ${paymentMethod} (${reference}) was confirmed. Full Microsoft Word (.docx), PDF export, and text copying are now available.`,
         type: "SUCCESS"
       }
     });

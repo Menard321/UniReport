@@ -36,12 +36,15 @@ import {
   Info,
   Paperclip,
   Trash2,
-  Printer
+  Printer,
+  FileEdit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine, DocxExportOptions } from "@/lib/export/docx-compiler";
 import { SuggestionModal } from "@/components/evidence/SuggestionModal";
+import { ComprehensiveFieldReportSuggestionModal } from "@/components/evidence/ComprehensiveFieldReportSuggestionModal";
 import { DocumentExportPaywallModal } from "@/components/billing/DocumentExportPaywallModal";
+import { DocumentDownloadSelectorModal, ExportFormatType } from "@/components/export/DocumentDownloadSelectorModal";
 import {
   TANZANIA_ACADEMIC_CATALOG,
   getUniversitiesCatalog,
@@ -110,6 +113,7 @@ export default function FieldReportGuidedPage() {
   const [challenges, setChallenges] = useState("");
   const [keyLearnings, setKeyLearnings] = useState("");
   const [activeSuggestionField, setActiveSuggestionField] = useState<"activities" | "toolsUsed" | "challenges" | "keyLearnings" | null>(null);
+  const [showComprehensiveModal, setShowComprehensiveModal] = useState(false);
   const [stepError, setStepError] = useState("");
   const [canvasViewMode, setCanvasViewMode] = useState<"formatted" | "raw">("formatted");
 
@@ -150,7 +154,8 @@ export default function FieldReportGuidedPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "cover">("pdf");
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "cover" | "doc">("pdf");
+  const [showDownloadSelector, setShowDownloadSelector] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [generationPhase, setGenerationPhase] = useState<string>("");
   const [generationProgress, setGenerationProgress] = useState<number>(0);
@@ -717,9 +722,12 @@ Follow these strict writing style instructions:
 
       const data = await res.json();
       let reportText = institutionalReport;
-      // Only adopt external AI completion if it preserves full document structure with SVGs, tables, and page budget breaks
-      if (res.ok && data.result && data.result.includes("<!-- PAGE_BREAK -->") && data.result.includes("<svg") && data.result.length > 10000) {
-        reportText = data.result;
+      if (res.ok && data.result && data.result.length > 2500 && (data.result.includes("CHAPTER") || data.result.includes("Chapter"))) {
+        let finalReport = data.result;
+        if ((!finalReport.includes("<svg") || !finalReport.includes("DECLARATION")) && institutionalReport.includes("<svg")) {
+          finalReport = UniversityTemplateEngine.reinjectVisualsIfMissing(finalReport, institutionalReport);
+        }
+        reportText = finalReport;
       }
 
       setGeneratedReport(reportText);
@@ -780,7 +788,7 @@ Follow these strict writing style instructions:
     }
   };
 
-  const handleExport = async (format: "pdf" | "cover" = "pdf") => {
+  const handleExport = async (format: "pdf" | "cover" | "doc" = "pdf") => {
     if (!generatedReport) return;
     setSelectedFormat(format);
 
@@ -798,6 +806,8 @@ Follow these strict writing style instructions:
     if (isUnlocked) {
       if (format === "cover") {
         DocxCompilerEngine.openCoverPageOnlyPdfWindow(exportOptions);
+      } else if (format === "doc") {
+        DocxCompilerEngine.downloadDocxFile(exportOptions);
       } else {
         DocxCompilerEngine.openPdfPrintWindow(exportOptions);
       }
@@ -810,7 +820,7 @@ Follow these strict writing style instructions:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: createdDocId,
-          format: "pdf",
+          format: format === "doc" ? "doc" : "pdf",
           options: exportOptions
         })
       });
@@ -822,6 +832,8 @@ Follow these strict writing style instructions:
         setIsUnlocked(true);
         if (format === "cover") {
           DocxCompilerEngine.openCoverPageOnlyPdfWindow(exportOptions);
+        } else if (format === "doc") {
+          DocxCompilerEngine.downloadDocxFile(exportOptions);
         } else {
           DocxCompilerEngine.openPdfPrintWindow(exportOptions);
         }
@@ -849,9 +861,25 @@ Follow these strict writing style instructions:
           const opts = buildExportOptions();
           if (selectedFormat === "cover") {
             DocxCompilerEngine.openCoverPageOnlyPdfWindow(opts);
+          } else if (selectedFormat === "doc") {
+            DocxCompilerEngine.downloadDocxFile(opts);
           } else {
             DocxCompilerEngine.openPdfPrintWindow(opts);
           }
+        }}
+      />
+
+      {/* DOCUMENT DOWNLOAD SELECTOR MODAL */}
+      <DocumentDownloadSelectorModal
+        isOpen={showDownloadSelector}
+        onClose={() => setShowDownloadSelector(false)}
+        documentTitle={reportTitle || `Fieldwork Report (${targetPages} Pages)`}
+        isUnlocked={isUnlocked}
+        onSelectFormat={(fmt) => handleExport(fmt)}
+        onUnlockRequired={(fmt) => {
+          setSelectedFormat(fmt);
+          setShowDownloadSelector(false);
+          setShowPaymentModal(true);
         }}
       />
 
@@ -1470,16 +1498,47 @@ Follow these strict writing style instructions:
               )}
             </div>
 
+            {/* SINGLE SUGGESTION BANNER FOR ALL 4 FIELDS BASED STRICTLY ON REPORT TITLE */}
+            <div className="p-4 rounded-xl border border-teal-200 dark:border-teal-850 bg-gradient-to-r from-teal-50/90 via-emerald-50/60 to-cyan-50/90 dark:from-teal-950/40 dark:via-emerald-950/25 dark:to-cyan-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-teal-600 text-white shadow-xs">
+                    <Sparkles className="size-4" />
+                  </span>
+                  <span className="text-xs font-bold text-teal-950 dark:text-teal-200">
+                    Smart AI Suggestion from Report Title
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300">
+                    All 4 Fields
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-850 dark:text-teal-300/90 leading-relaxed">
+                  {reportTitle.trim() ? (
+                    <>
+                      Generates defense-ready duties, tools, challenges, and learnings for:{" "}
+                      <strong className="text-teal-950 dark:text-teal-100 uppercase">
+                        &quot;{reportTitle.trim()}&quot;
+                      </strong>
+                      . You can review and edit before accepting.
+                    </>
+                  ) : (
+                    "Generates professional activities, tools, equipment, challenges, and key learnings strictly based on your report title. You can review and edit before accepting."
+                  )}
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => setShowComprehensiveModal(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-4 py-2.5 h-auto shrink-0 shadow-sm gap-2"
+              >
+                <Sparkles className="size-3.5" />
+                Auto-Suggest All 4 Fields
+              </Button>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold uppercase text-muted-foreground">Activities & Tasks Performed</label>
-                <button
-                  type="button"
-                  onClick={() => setActiveSuggestionField("activities")}
-                  className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
-                >
-                  <Sparkles className="size-3" /> Suggest Professional Draft
-                </button>
               </div>
               <textarea
                 rows={3}
@@ -1496,13 +1555,6 @@ Follow these strict writing style instructions:
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold uppercase text-muted-foreground">Tools, Equipment & Software Used</label>
-                <button
-                  type="button"
-                  onClick={() => setActiveSuggestionField("toolsUsed")}
-                  className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
-                >
-                  <Sparkles className="size-3" /> Suggest Equipment
-                </button>
               </div>
               <input
                 type="text"
@@ -1517,13 +1569,6 @@ Follow these strict writing style instructions:
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold uppercase text-muted-foreground">Challenges Encountered</label>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSuggestionField("challenges")}
-                    className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
-                  >
-                    <Sparkles className="size-3" /> Suggest
-                  </button>
                 </div>
                 <textarea
                   rows={2}
@@ -1536,13 +1581,6 @@ Follow these strict writing style instructions:
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold uppercase text-muted-foreground">Key Learnings</label>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSuggestionField("keyLearnings")}
-                    className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center gap-1 transition-colors"
-                  >
-                    <Sparkles className="size-3" /> Suggest
-                  </button>
                 </div>
                 <textarea
                   rows={2}
@@ -1554,41 +1592,30 @@ Follow these strict writing style instructions:
               </div>
             </div>
 
-            {/* SUGGESTION / REWRITE MODAL */}
-            {activeSuggestionField && (
-              <SuggestionModal
-                isOpen={!!activeSuggestionField}
-                onClose={() => setActiveSuggestionField(null)}
-                onApply={(newVal) => {
-                  if (activeSuggestionField === "activities") setActivities(newVal);
-                  if (activeSuggestionField === "toolsUsed") setToolsUsed(newVal);
-                  if (activeSuggestionField === "challenges") setChallenges(newVal);
-                  if (activeSuggestionField === "keyLearnings") setKeyLearnings(newVal);
+            {/* COMPREHENSIVE TITLE-BASED ALL-IN-ONE SUGGESTION MODAL */}
+            {showComprehensiveModal && (
+              <ComprehensiveFieldReportSuggestionModal
+                isOpen={showComprehensiveModal}
+                onClose={() => setShowComprehensiveModal(false)}
+                onApply={(suggestedData) => {
+                  setActivities(suggestedData.activities);
+                  setToolsUsed(suggestedData.toolsUsed);
+                  setChallenges(suggestedData.challenges);
+                  setKeyLearnings(suggestedData.keyLearnings);
                   setStepError("");
                 }}
-                field={activeSuggestionField}
-                fieldName={
-                  activeSuggestionField === "activities"
-                    ? "Activities & Tasks Performed"
-                    : activeSuggestionField === "toolsUsed"
-                    ? "Tools, Equipment & Software Used"
-                    : activeSuggestionField === "challenges"
-                    ? "Challenges Encountered"
-                    : "Key Learnings & Competencies"
-                }
-                programmeId={selectedCourseId || programme}
+                reportTitle={reportTitle}
+                onUpdateTitle={(newTitle) => setReportTitle(newTitle)}
                 organization={organization}
                 department={department}
+                programmeId={selectedCourseId || programme}
                 duration={duration}
-                currentValue={
-                  activeSuggestionField === "activities"
-                    ? activities
-                    : activeSuggestionField === "toolsUsed"
-                    ? toolsUsed
-                    : activeSuggestionField === "challenges"
-                    ? challenges
-                    : keyLearnings
-                }
+                currentValues={{
+                  activities,
+                  toolsUsed,
+                  challenges,
+                  keyLearnings
+                }}
               />
             )}
           </div>
@@ -1768,19 +1795,34 @@ Follow these strict writing style instructions:
                   Preview & Edit
                 </Button>
 
-                {/* DOWNLOAD ACTIONS (PDF ONLY PER UNREPORTTZ SPEC) */}
+                {/* DOWNLOAD ACTIONS: CHOOSE BETWEEN DOCX & PDF */}
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowDownloadSelector(true)} 
+                  disabled={!generatedReport} 
+                  className="text-xs gap-1.5 font-bold shadow-sm bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white"
+                  title="Choose download format: Microsoft Word (.docx) or PDF"
+                >
+                  <Download className="size-3.5" />
+                  <span>Download Options</span>
+                  <ChevronDown className="size-3 opacity-80" />
+                  {!isUnlocked && <Lock className="size-3 text-amber-200" />}
+                </Button>
+
+                {/* DIRECT WORD (.DOCX) DOWNLOAD */}
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => handleExport("cover")} 
+                  onClick={() => handleExport("doc")} 
                   disabled={!generatedReport} 
-                  className="text-xs gap-1.5 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40"
-                  title="Export official university cover page only as PDF"
+                  className="text-xs gap-1.5 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                  title={!isUnlocked ? "Unlock to download editable Microsoft Word document (.docx)" : "Download editable Microsoft Word document (.docx / .doc)"}
                 >
-                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <FileText className="size-3.5 text-teal-600" />}
-                  Cover Page (PDF)
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-500" /> : <FileEdit className="size-3.5 text-blue-600" />}
+                  Word (.docx)
                 </Button>
 
+                {/* DIRECT PDF DOWNLOAD */}
                 <Button 
                   size="sm" 
                   onClick={() => handleExport("pdf")} 
@@ -1792,8 +1834,21 @@ Follow these strict writing style instructions:
                   }`}
                   title={!isUnlocked ? "Complete payment to unlock and download full PDF" : "Download full official PDF document"}
                 >
-                  {!isUnlocked ? <Lock className="size-3.5 text-amber-200" /> : <Download className="size-3.5" />}
-                  {isUnlocked ? "Download Full PDF" : "Unlock & Download PDF"}
+                  {!isUnlocked ? <Lock className="size-3.5 text-amber-200" /> : <Printer className="size-3.5" />}
+                  {isUnlocked ? "Download PDF" : "Unlock & Download PDF"}
+                </Button>
+
+                {/* COVER ONLY */}
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => handleExport("cover")} 
+                  disabled={!generatedReport} 
+                  className="text-xs gap-1 border border-slate-200 dark:border-slate-800 text-muted-foreground hover:text-foreground font-medium"
+                  title="Export official university cover page only as PDF"
+                >
+                  <GraduationCap className="size-3.5 text-teal-600" />
+                  Cover
                 </Button>
               </div>
             </div>
@@ -1836,78 +1891,50 @@ Follow these strict writing style instructions:
                   </div>
                 </div>
               ) : canvasViewMode === "formatted" ? (
-                <div className="space-y-4">
-                  {/* Clean Print / Export Notice */}
-                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">💡</span>
-                      <span><strong>University Print Standard:</strong> When downloading or printing via Chrome, uncheck <strong>Headers and footers</strong> in More Settings for clean margins without URL text.</span>
+                <div className="a4-document-canvas rounded-xl overflow-y-auto max-h-[820px] border border-slate-200 dark:border-slate-800">
+                  {/* Sheet 1: Cover Page */}
+                  <div className="a4-document-sheet p-8 sm:p-12 relative flex flex-col justify-between">
+                    <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                      Sheet 1: Official University Cover
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-xs h-7 border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                        onClick={() => handleExport("cover")}
-                      >
-                        Print Cover Only (Free)
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className="text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white"
-                        onClick={() => handleExport("pdf")}
-                      >
-                        <Printer className="size-3.5 mr-1" /> Print / Save Full PDF
-                      </Button>
+                    <div 
+                      dangerouslySetInnerHTML={{
+                        __html: DocxCompilerEngine.compileCoverPageHtml(effectiveExportOptions)
+                      }} 
+                    />
+                    <div className="text-center text-[10px] text-slate-400 font-sans mt-2">
+                      [Page 1 — Official Cover Page]
                     </div>
                   </div>
 
-                  {/* Multi-Sheet A4 Canvas Preview */}
-                  <div className="a4-document-canvas rounded-xl overflow-y-auto max-h-[820px] border border-slate-200 dark:border-slate-800">
-                    {/* Sheet 1: Cover Page */}
-                    <div className="a4-document-sheet p-8 sm:p-12 relative flex flex-col justify-between">
-                      <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
-                        Sheet 1: Official University Cover
-                      </div>
-                      <div 
-                        dangerouslySetInnerHTML={{
-                          __html: DocxCompilerEngine.compileCoverPageHtml(effectiveExportOptions)
-                        }} 
-                      />
-                      <div className="text-center text-[10px] text-slate-400 font-sans mt-2">
-                        [Page 1 — Official Cover Page]
-                      </div>
-                    </div>
-
-                    {/* Sheets 2+: Preliminaries & Individual Chapters */}
-                    {contentSheets.length > 0 ? (
-                      contentSheets.map((sheetHtml, idx) => (
-                        <div key={idx} className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
-                          <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
-                            Sheet {idx + 2} of {contentSheets.length + 1}
-                          </div>
-                          <div 
-                            className="prose max-w-none text-slate-900"
-                            dangerouslySetInnerHTML={{ __html: sheetHtml }} 
-                          />
-                          <div className="text-center text-xs text-slate-500 font-serif mt-10 pt-4 border-t border-slate-200">
-                            {idx < effectiveCh1Index 
-                              ? `— ${DocxCompilerEngine.toRoman(idx + 1)} —` 
-                              : `— Page ${idx - effectiveCh1Index + 1} —`}
-                          </div>
+                  {/* Sheets 2+: Preliminaries & Individual Chapters */}
+                  {contentSheets.length > 0 ? (
+                    contentSheets.map((sheetHtml, idx) => (
+                      <div key={idx} className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
+                        <div className="absolute top-3 right-4 text-[10px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                          Sheet {idx + 2} of {contentSheets.length + 1}
                         </div>
-                      ))
-                    ) : (
-                      <div className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
                         <div 
                           className="prose max-w-none text-slate-900"
-                          dangerouslySetInnerHTML={{
-                            __html: DocxCompilerEngine.formatContentToAcademicHtml(generatedReport, effectiveExportOptions)
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sheetHtml }} 
                         />
+                        <div className="text-center text-xs text-slate-500 font-serif mt-10 pt-4 border-t border-slate-200">
+                          {idx < effectiveCh1Index 
+                            ? `— ${DocxCompilerEngine.toRoman(idx + 1)} —` 
+                            : `— Page ${idx - effectiveCh1Index + 1} —`}
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="a4-document-sheet p-8 sm:p-14 relative font-serif text-[11pt] leading-relaxed">
+                      <div 
+                        className="prose max-w-none text-slate-900"
+                        dangerouslySetInnerHTML={{
+                          __html: DocxCompilerEngine.formatContentToAcademicHtml(generatedReport, effectiveExportOptions)
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="relative h-full">

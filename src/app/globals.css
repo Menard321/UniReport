@@ -408,4 +408,31 @@ body {
   margin: 16pt 0;
 }
 
+.a4-document-sheet.content-sheet {
+  padding: 22mm 20mm 18mm 28mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.a4-document-sheet .sheet-content {
+  flex: 1 1 auto;
+}
+
+.a4-document-sheet .sheet-footer {
+  text-align: center;
+  font-family: "Times New Roman", Times, Georgia, serif;
+  font-size: 10pt;
+  color: #334155;
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 0.5pt solid #cbd5e1;
+}
+
+.a4-document-sheet [contenteditable="true"]:focus {
+  outline: 1.5px dashed #0d9488;
+  outline-offset: 4px;
+}
+
+
 

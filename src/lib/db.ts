@@ -2,32 +2,48 @@ import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 
-// Ensure DATABASE_URL is loaded into process.env even if dev server started before .env was created
-if (!process.env.DATABASE_URL) {
+function sanitizeDatabaseUrl(rawUrl?: string): string | undefined {
+  if (!rawUrl) return rawUrl;
   try {
-    const envPath = path.join(process.cwd(), ".env");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      for (const line of content.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#")) {
-          const eqIdx = trimmed.indexOf("=");
-          if (eqIdx > 0) {
-            const key = trimmed.substring(0, eqIdx).trim();
-            let val = trimmed.substring(eqIdx + 1).trim();
+    // If password contains unencoded '@', e.g. postgresql://user:@password@host:port/db
+    const match = rawUrl.match(/^(postgresql:\/\/[^:]+:)(.*)(@[^@\/]+:[0-9]+\/.*)$/);
+    if (match) {
+      const [, prefix, password, suffix] = match;
+      if (!password.includes("%")) {
+        return `${prefix}${encodeURIComponent(password)}${suffix}`;
+      }
+    }
+  } catch {
+    // Return original if parsing fails
+  }
+  return rawUrl;
+}
+
+function getDatabaseUrl(): string | undefined {
+  let url = process.env.DATABASE_URL;
+  if (!url) {
+    try {
+      const envPath = path.join(process.cwd(), ".env");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf-8");
+        for (const line of content.split(/\r?\n/)) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("DATABASE_URL=")) {
+            let val = trimmed.substring("DATABASE_URL=".length).trim();
             if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
               val = val.slice(1, -1);
             }
-            if (!process.env[key]) {
-              process.env[key] = val;
-            }
+            url = val;
+            process.env.DATABASE_URL = val;
+            break;
           }
         }
       }
+    } catch (err) {
+      console.warn("[DB] Could not load .env file:", err);
     }
-  } catch (err) {
-    console.warn("[DB] Could not load .env file:", err);
   }
+  return sanitizeDatabaseUrl(url);
 }
 
 declare global {
@@ -35,8 +51,9 @@ declare global {
 }
 
 const createPrismaClient = () => {
+  const url = getDatabaseUrl();
   return new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
+    datasourceUrl: url,
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   }) as PrismaClient & Record<string, any>;
 };

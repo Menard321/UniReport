@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DocxCompilerEngine } from "@/lib/export/docx-compiler";
 import { DocumentExportPaywallModal } from "@/components/billing/DocumentExportPaywallModal";
+import { DocumentDownloadSelectorModal, ExportFormatType } from "@/components/export/DocumentDownloadSelectorModal";
 import {
   getUniversitiesCatalog,
   getUniversityByShortName,
@@ -96,6 +97,7 @@ export default function LabReportGuidedPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [selectedExportFormat, setSelectedExportFormat] = useState<"pdf" | "doc">("pdf");
+  const [showDownloadSelector, setShowDownloadSelector] = useState(false);
 
   // Institution Selection Sync
   const handleUniversityChange = (shortName: string) => {
@@ -945,6 +947,17 @@ export default function LabReportGuidedPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowDownloadSelector(true)}
+                disabled={isGenerating || !generatedReport}
+                className="gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                title="Choose download format: Microsoft Word (.docx) or PDF"
+              >
+                <Download className="size-3.5 text-teal-600" />
+                Download Options
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleExportPdf}
                 disabled={isGenerating || !generatedReport}
                 className="gap-1.5 text-xs border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40"
@@ -1027,6 +1040,20 @@ export default function LabReportGuidedPage() {
           } else {
             DocxCompilerEngine.openPdfPrintWindow(exportOptions);
           }
+        }}
+      />
+
+      {/* DOCUMENT DOWNLOAD SELECTOR MODAL */}
+      <DocumentDownloadSelectorModal
+        isOpen={showDownloadSelector}
+        onClose={() => setShowDownloadSelector(false)}
+        documentTitle={experimentTitle || "Laboratory Practical Report"}
+        isUnlocked={isUnlocked}
+        onSelectFormat={(fmt) => handleExport(fmt === "doc" ? "doc" : "pdf")}
+        onUnlockRequired={(fmt) => {
+          setSelectedExportFormat(fmt === "doc" ? "doc" : "pdf");
+          setShowDownloadSelector(false);
+          setShowPaywallModal(true);
         }}
       />
     </div>

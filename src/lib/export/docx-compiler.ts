@@ -118,7 +118,7 @@ export class DocxCompilerEngine {
     const formattedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     
     const fontFamily = options.formattingRules?.font?.family || "Times New Roman";
-    const bodySize = options.formattingRules?.font?.body_size || 10;
+    const bodySize = options.formattingRules?.font?.body_size || 11;
     const h1Size = options.formattingRules?.font?.heading_1_size || 14;
     const h2Size = options.formattingRules?.font?.heading_2_size || 12;
     const lineSpacing = options.formattingRules?.spacing?.line_spacing || 1.5;
@@ -132,22 +132,14 @@ export class DocxCompilerEngine {
 
     const resolvedLogoUrl = resolveInstitutionLogo(options.institution, options.institutionShortName, options.logoUrl);
 
-    // Convert Markdown headings to Word HTML with institutional styling & chapter page-breaks
-    const bodyHtml = options.content
-      .replace(/^# (.*$)/gim, `<h1 style="font-family: '${fontFamily}', Times, serif; color: #0f172a; font-size: ${h1Size}pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; border-bottom: 1.5pt solid #0f172a; padding-bottom: 4pt; text-transform: uppercase; page-break-before: always; mso-break-type: section-break;">$1</h1>`)
-      .replace(/^## (.*$)/gim, `<h2 style="font-family: '${fontFamily}', Times, serif; color: #1e293b; font-size: ${h2Size}pt; font-weight: bold; margin-top: 18pt; margin-bottom: 8pt; mso-break-type: section-break;">$1</h2>`)
-      .replace(/^### (.*$)/gim, `<h3 style="font-family: '${fontFamily}', Times, serif; color: #334155; font-size: ${h2Size}pt; font-weight: bold; margin-top: 14pt; margin-bottom: 6pt;">$1</h3>`)
-      .replace(/^#### (.*$)/gim, `<h4 style="font-family: '${fontFamily}', Times, serif; color: #475569; font-size: ${bodySize}pt; font-weight: bold; font-style: italic; margin-top: 10pt; margin-bottom: 4pt;">$1</h4>`)
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n\n/g, `</p><p style="font-family: '${fontFamily}', Times, serif; font-size: ${bodySize}pt; line-height: ${lineSpacing}; margin-bottom: ${paragraphAfter}pt; text-align: justify; text-justify: inter-ideograph;">`)
-      .replace(/\n/g, '<br/>');
+    // Transform content using full academic engine (chapters, decimal headings, tables, abbreviations, figures)
+    const bodyHtml = DocxCompilerEngine.formatContentToAcademicHtml(options.content, options);
 
     const htmlDocument = `
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
   <meta charset='utf-8'>
-  <title>${options.title}</title>
+  <title>${options.title} - Microsoft Word</title>
   <!--[if gte mso 9]>
   <xml>
     <w:WordDocument>
@@ -170,7 +162,7 @@ export class DocxCompilerEngine {
       mso-paper-source: 0;
     }
     body {
-      font-family: '${fontFamily}', Times, serif;
+      font-family: '${fontFamily}', 'Times New Roman', serif;
       font-size: ${bodySize}pt;
       line-height: ${lineSpacing};
       color: #000000;
@@ -178,78 +170,211 @@ export class DocxCompilerEngine {
     .cover-page {
       page-break-after: always;
       text-align: center;
-      padding-top: 1.5in;
+      padding-top: 0.5in;
+      mso-break-type: section-break;
     }
-    .cover-title {
-      font-size: 20pt;
+    .institution-name {
+      font-size: 15pt;
       font-weight: bold;
-      font-family: '${fontFamily}', Times, serif;
       text-transform: uppercase;
-      margin-bottom: 24pt;
+      letter-spacing: 0.5pt;
+      margin-bottom: 8pt;
     }
-    .cover-meta {
-      font-size: ${bodySize}pt;
+    .faculty-name {
+      font-size: 12pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 6pt;
+      color: #1e293b;
+    }
+    .department-name {
+      font-size: 11pt;
+      font-weight: bold;
+      text-transform: uppercase;
       margin-bottom: 12pt;
+      color: #334155;
     }
-    .toc-page {
-      page-break-after: always;
-      margin-top: 20pt;
+    .report-type-badge {
+      font-size: 12pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1pt;
+      margin: 14pt 0;
+      color: #0f172a;
     }
-    p {
+    .report-title {
+      font-size: 16pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      line-height: 1.3;
+      margin: 20pt 0 24pt 0;
+    }
+    .meta-table {
+      width: 100%;
+      border: none;
+      margin-top: 30pt;
+      font-size: ${bodySize}pt;
+    }
+    .meta-table td {
+      padding: 4pt 8pt;
+      border: none;
+      vertical-align: top;
+    }
+    .meta-label {
+      font-weight: bold;
+      width: 35%;
+      text-align: left;
+    }
+    .meta-val {
+      width: 65%;
+      text-align: left;
+    }
+    .chapter-title {
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: ${h1Size}pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #000000;
+      margin-top: 24pt;
+      margin-bottom: 12pt;
+      border-bottom: 1.5pt solid #000000;
+      padding-bottom: 4pt;
+      page-break-before: always;
+      mso-break-type: section-break;
+    }
+    .sub-heading {
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: ${h2Size}pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 16pt;
+      margin-bottom: 8pt;
+      page-break-after: avoid;
+    }
+    .section-heading {
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: ${h2Size}pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 14pt;
+      margin-bottom: 6pt;
+      page-break-after: avoid;
+    }
+    .sub-section-heading {
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: ${bodySize}pt;
+      font-weight: bold;
+      font-style: italic;
+      color: #000000;
+      margin-top: 10pt;
+      margin-bottom: 4pt;
+      page-break-after: avoid;
+    }
+    .paragraph, p {
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: ${bodySize}pt;
+      line-height: ${lineSpacing};
       margin-bottom: ${paragraphAfter}pt;
       text-align: justify;
-      line-height: ${lineSpacing};
+      text-justify: inter-word;
+      text-align-last: left;
     }
-    h1 {
-      page-break-before: always;
+    h1, h2, h3, h4, h5, h6,
+    .chapter-title, .sub-heading, .section-heading, .sub-section-heading,
+    .lead-intro, .list-intro, .list-label, b, strong, caption, figcaption {
+      text-align: left !important;
+      text-align-last: left !important;
+    }
+    table, .academic-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14pt 0;
+      font-family: '${fontFamily}', 'Times New Roman', serif;
+      font-size: 10pt;
+    }
+    table th, table td, .academic-table th, .academic-table td {
+      border: 1pt solid #475569;
+      padding: 6pt 8pt;
+      text-align: left;
+    }
+    table th, .academic-table th {
+      background-color: #f1f5f9;
+      font-weight: bold;
+    }
+    .toc-entry {
+      margin-bottom: 4pt;
+      font-size: 10pt;
+    }
+    .toc-title {
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <!-- COVER PAGE (OFFICIAL INSTITUTIONAL BLOCK) -->
-  <div class="cover-page" style="text-align: center; page-break-after: always;">
-    <p style="font-size: 15pt; font-weight: bold; font-family: '${fontFamily}', serif; margin-bottom: 20pt; letter-spacing: 0.5pt;">
-      ${(options.institution || "HIGHER LEARNING INSTITUTION").toUpperCase()}
-    </p>
-    ${options.faculty ? `<p style="font-size: 13pt; font-weight: bold; margin-bottom: 16pt; color: #334155;">${options.faculty.toUpperCase()}</p>` : ''}
-    ${options.department ? `<p style="font-size: 11pt; font-weight: bold; margin-bottom: 16pt; color: #475569;">DEPARTMENT OF ${options.department.toUpperCase()}</p>` : ''}
+  <div class="cover-page">
+    <div class="institution-name">${(options.institution || "HIGHER LEARNING INSTITUTION").toUpperCase()}</div>
+    ${options.faculty ? `<div class="faculty-name">${options.faculty.toUpperCase()}</div>` : ''}
+    ${options.department ? `<div class="department-name">DEPARTMENT OF ${options.department.toUpperCase()}</div>` : ''}
     
     ${resolvedLogoUrl ? `
-    <div style="margin: 20pt 0; text-align: center;">
-      <img src="${resolvedLogoUrl}" alt="${options.institution} Logo" style="max-height: 75pt; max-width: 130pt;" />
+    <div style="margin: 16pt 0; text-align: center;">
+      <img src="${resolvedLogoUrl}" alt="${options.institution || 'University'} Logo" style="max-height: 80pt; max-width: 140pt;" />
     </div>` : ''}
 
-    <p style="font-size: 13pt; font-weight: bold; margin-top: 16pt; margin-bottom: 16pt; letter-spacing: 1pt;">
+    <div class="report-type-badge">
       ${(options.reportType || options.templateName || "FIELD PRACTICAL TRAINING REPORT").toUpperCase()}
-    </p>
-
-    <div style="margin-top: 30pt; margin-bottom: 40pt;">
-      <p style="font-size: 18pt; font-weight: bold; font-family: '${fontFamily}', serif; text-transform: uppercase; line-height: 1.3;">
-        ${options.title}
-      </p>
     </div>
 
-    <div style="margin-top: 40pt; font-size: ${bodySize}pt; line-height: 1.8;">
-      <p><strong>PROGRAMME:</strong> ${options.programme || 'Degree Programme'}</p>
-      <p><strong>ACADEMIC YEAR:</strong> ${options.academicYear || '2024/2025'}</p>
-      ${options.supervisorName ? `<p><strong>SUPERVISOR:</strong> ${options.supervisorName}</p>` : ''}
-      ${options.templateName ? `<p style="font-size: 10pt; color: #64748b; margin-top: 15pt;">Template Standard: ${options.templateName}</p>` : ''}
-      <p style="margin-top: 30pt;">Date of Submission: ${formattedDate}</p>
+    <div class="report-title">
+      ${options.title}
     </div>
-  </div>
 
-  <!-- TABLE OF CONTENTS -->
-  <div class="toc-page">
-    <h2 style="font-family: '${fontFamily}', serif; font-size: ${h1Size}pt; font-weight: bold; border-bottom: 1.5pt solid #000; padding-bottom: 4pt; margin-bottom: 16pt;">TABLE OF CONTENTS</h2>
-    <p style="font-style: italic; color: #475569;">(Formatted according to institutional structural sequence)</p>
-    <hr style="border: 0.5pt solid #cbd5e1; margin-bottom: 20pt;"/>
+    <table class="meta-table">
+      ${options.studentName ? `
+      <tr>
+        <td class="meta-label">Student Name:</td>
+        <td class="meta-val"><strong>${options.studentName}</strong></td>
+      </tr>` : ''}
+      ${options.registrationNumber ? `
+      <tr>
+        <td class="meta-label">Registration No:</td>
+        <td class="meta-val"><strong>${options.registrationNumber}</strong></td>
+      </tr>` : ''}
+      ${options.programme ? `
+      <tr>
+        <td class="meta-label">Degree Programme:</td>
+        <td class="meta-val">${options.programme}</td>
+      </tr>` : ''}
+      ${options.organization ? `
+      <tr>
+        <td class="meta-label">Host Organization:</td>
+        <td class="meta-val">${options.organization}</td>
+      </tr>` : ''}
+      ${options.fieldSupervisor || options.supervisorName ? `
+      <tr>
+        <td class="meta-label">Field Supervisor:</td>
+        <td class="meta-val">${options.fieldSupervisor || options.supervisorName}</td>
+      </tr>` : ''}
+      ${options.universitySupervisor ? `
+      <tr>
+        <td class="meta-label">Academic Supervisor:</td>
+        <td class="meta-val">${options.universitySupervisor}</td>
+      </tr>` : ''}
+      <tr>
+        <td class="meta-label">Academic Year:</td>
+        <td class="meta-val">${options.academicYear || "2024/2025"}</td>
+      </tr>
+      <tr>
+        <td class="meta-label">Date of Submission:</td>
+        <td class="meta-val">${options.submissionDate || formattedDate}</td>
+      </tr>
+    </table>
   </div>
 
   <!-- MAIN DOCUMENT CONTENT -->
-  <div>
-    <p style="font-family: '${fontFamily}', serif; font-size: ${bodySize}pt; line-height: ${lineSpacing}; margin-bottom: ${paragraphAfter}pt; text-align: justify;">
-      ${bodyHtml}
-    </p>
+  <div class="document-body">
+    ${bodyHtml}
   </div>
 </body>
 </html>
@@ -549,9 +674,16 @@ export class DocxCompilerEngine {
       font-size: ${bodySize}pt;
       text-align: justify;
       text-justify: inter-word;
+      text-align-last: left;
       margin-bottom: 12pt;
       line-height: ${lineSpacing};
       text-indent: 10mm;
+    }
+    h1, h2, h3, h4, h5, h6,
+    .chapter-title, .sub-heading, .section-heading, .sub-section-heading,
+    .lead-intro, .list-intro, .list-label, b, strong, caption, figcaption {
+      text-align: left !important;
+      text-align-last: left !important;
     }
     /* DYNAMIC TABLE OF CONTENTS CSS DOT LEADERS */
     .toc-container, .lot-container, .lof-container {
@@ -986,16 +1118,40 @@ export class DocxCompilerEngine {
       return `__PROTECTED_HTML_BLOCK_${idx}__`;
     });
 
+    // Ensure Table of Contents placeholder exists if not already present in content
+    if (!content.includes("<!-- DYNAMIC_TABLE_OF_CONTENTS_PLACEHOLDER -->")) {
+      if (/(?:#\s*)?TABLE OF CONTENTS\b/i.test(content)) {
+        content = content.replace(/((?:#\s*)?TABLE OF CONTENTS[^\n]*)/i, "$1\n\n<!-- DYNAMIC_TABLE_OF_CONTENTS_PLACEHOLDER -->\n\n<!-- PAGE_BREAK -->");
+      } else if (/(?:#\s*)?CHAPTER\s+(?:1|ONE)\b/i.test(content)) {
+        content = content.replace(/((?:#\s*)?CHAPTER\s+(?:1|ONE)\b)/i, "# TABLE OF CONTENTS\n\n<!-- DYNAMIC_TABLE_OF_CONTENTS_PLACEHOLDER -->\n\n<!-- PAGE_BREAK -->\n\n$1");
+      }
+    }
+
+    if (!content.includes("<!-- DYNAMIC_LIST_OF_TABLES_PLACEHOLDER -->") && /(?:#\s*)?LIST OF TABLES\b/i.test(content)) {
+      content = content.replace(/((?:#\s*)?LIST OF TABLES[^\n]*)/i, "$1\n\n<!-- DYNAMIC_LIST_OF_TABLES_PLACEHOLDER -->\n\n<!-- PAGE_BREAK -->");
+    }
+
+    if (!content.includes("<!-- DYNAMIC_LIST_OF_FIGURES_PLACEHOLDER -->") && /(?:#\s*)?LIST OF FIGURES\b/i.test(content)) {
+      content = content.replace(/((?:#\s*)?LIST OF FIGURES[^\n]*)/i, "$1\n\n<!-- DYNAMIC_LIST_OF_FIGURES_PLACEHOLDER -->\n\n<!-- PAGE_BREAK -->");
+    }
+
     // 3. Generate dynamic Table of Contents, List of Tables, and List of Figures components
     const dynamicTocHtml = DocxCompilerEngine.generateDynamicTableOfContentsHtml(content, options);
     const dynamicLotHtml = DocxCompilerEngine.generateDynamicListOfTablesHtml(content);
     const dynamicLofHtml = DocxCompilerEngine.generateDynamicListOfFiguresHtml(content);
 
-    // 4. Inject Dynamic Navigation Placeholders
+    // 4. Inject Dynamic Navigation Placeholders as protected HTML blocks (prevents <br/> injection into TOC)
+    const tocBlockIdx = htmlBlocks.length;
+    htmlBlocks.push(dynamicTocHtml);
+    const lotBlockIdx = htmlBlocks.length;
+    htmlBlocks.push(dynamicLotHtml);
+    const lofBlockIdx = htmlBlocks.length;
+    htmlBlocks.push(dynamicLofHtml);
+
     content = content
-      .replace(/<!-- DYNAMIC_TABLE_OF_CONTENTS_PLACEHOLDER -->/g, dynamicTocHtml)
-      .replace(/<!-- DYNAMIC_LIST_OF_TABLES_PLACEHOLDER -->/g, dynamicLotHtml)
-      .replace(/<!-- DYNAMIC_LIST_OF_FIGURES_PLACEHOLDER -->/g, dynamicLofHtml);
+      .replace(/<!-- DYNAMIC_TABLE_OF_CONTENTS_PLACEHOLDER -->/g, `__PROTECTED_HTML_BLOCK_${tocBlockIdx}__`)
+      .replace(/<!-- DYNAMIC_LIST_OF_TABLES_PLACEHOLDER -->/g, `__PROTECTED_HTML_BLOCK_${lotBlockIdx}__`)
+      .replace(/<!-- DYNAMIC_LIST_OF_FIGURES_PLACEHOLDER -->/g, `__PROTECTED_HTML_BLOCK_${lofBlockIdx}__`);
 
     // 5. Normalize ASCII and chapter headers, ensuring clean single page breaks
     let normalized = content
@@ -1065,9 +1221,16 @@ export class DocxCompilerEngine {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       // Images
       .replace(/!\[(.*?)\]\((.*?)\)/g, '<figure class="academic-figure"><img src="$2" alt="$1" style="max-width: 85%; max-height: 400px; border-radius: 6px; border: 1px solid #cbd5e1; display: block; margin: 0 auto;" /><figcaption style="font-size: 10pt; font-style: italic; color: #475569; margin-top: 6pt;">$1</figcaption></figure>')
+      // Format list intros (lines ending with :) as their own paragraph to prevent justification stretching
+      .replace(/([^\n<]+:)\n(?=[0-9]+[\.\)]|[-*•]\s|[A-Za-z])/g, '$1\n\n')
+      // Ensure numbered items (1. 2. etc) and bullet items (- * •) are separated by paragraph breaks
+      .replace(/\n(?=(?:[0-9]+[\.\)]|[-*•])\s+)/g, '\n\n')
       // Paragraphs
       .replace(/\n\n+/g, '</p><p class="paragraph">')
       .replace(/\n/g, '<br/>');
+
+    // Tag list intros (ending with colon) with a specific class and explicit left alignment
+    html = html.replace(/<p class="paragraph">([^<]+:)\s*<\/p>/g, '<p class="paragraph list-intro" style="text-align: left !important; text-align-last: left !important; font-weight: 600; margin-top: 10pt; margin-bottom: 4pt;">$1</p>');
 
     // 7. Format clean abbreviations table if raw lines are present
     html = html.replace(/<p class="paragraph">\s*([A-Z0-9]{2,10}\s{2,}[^\n<]+(?:\s*<br\/>\s*[A-Z0-9]{2,10}\s{2,}[^\n<]+)*)\s*<\/p>/gi, (match, rawAbbrevs) => {

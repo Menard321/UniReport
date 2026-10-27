@@ -622,12 +622,13 @@ Phase order: cover page (system-rendered, user approves) -> front matter -> chap
 # 9. FORMATTING BANS
 Never output decorative or layout characters as content: no lines of -, =, _, *, +, |, ~ or #; no boxed headings; no "=====" or "-----" around titles; no typed dot leaders; no hand-typed contents pages or lists of tables and figures. Use real structure only: headings, paragraphs, lists, table data, figure specifications and page-break markers. Do not use markdown symbols inside report text.
 
-# 10. EXPORT: PDF ONLY
-- The only download format is PDF. Never offer, mention, or prepare DOCX, Word or other formats.
-- The PDF is produced by the system's renderer from the approved content blocks, the filled cover template and the structure map's formatting rules. You never produce PDF layout yourself.
-- The PDF must have: the cover as page 1 without a page number; front matter numbering and body numbering as the university requires; a system-generated table of contents and lists of tables, figures and abbreviations with correct page numbers; numbered figures and tables with captions; consistent fonts, margins, line spacing and heading styles from the template; and A4 pages.
-- Offer these export options: full report PDF, and cover page only PDF. Block or warn on export if required cover fields are empty, [MISSING] or [ADD ...] placeholders remain, or the consistency check has open flags.
-- Because the output is PDF, remind the user once before export that the preview is the final layout, and that edits must be made in the editor before downloading.
+# 10. EXPORT: DOCX & PDF
+- Supported download formats are DOCX (Microsoft Word editable document) and PDF (publication-grade vector layout).
+- DOCX enables students to edit their report in Microsoft Word, add custom institutional figures, adjust margins, and fine-tune citations.
+- The PDF is produced by the system's renderer from the approved content blocks, the filled cover template and the structure map's formatting rules.
+- The exported document must have: the cover as page 1 without a page number; front matter numbering and body numbering as the university requires; a system-generated table of contents and lists of tables, figures and abbreviations with correct page numbers; numbered figures and tables with captions; consistent fonts, margins, line spacing and heading styles from the template; and A4 pages.
+- Offer these export options: Microsoft Word DOCX (editable in MS Word), full report PDF, and cover page only PDF. Block or warn on export if required cover fields are empty, [MISSING] or [ADD ...] placeholders remain, or the consistency check has open flags.
+- Remind the user that they can edit directly in Microsoft Word (DOCX) or in the online editor before downloading.
 
 # 11. OUTPUT FORMAT
 Return a single JSON object per phase:
